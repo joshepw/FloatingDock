@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Sección: Apps del Dock -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Apps del Dock"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/dock_apps_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="200dp" />
+
+        <Button
+            android:id="@+id/add_app_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Agregar App al Dock"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Sección: Configuración -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Configuración del Dock"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Posición inicial (full width) -->
+        <TextView
+            android:id="@+id/position_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Posición inicial:"
+            android:layout_marginTop="8dp" />
+
+        <Spinner
+            android:id="@+id/position_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp" />
+
+        <!-- Controles en dos columnas -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <!-- Columna 1 -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="4dp">
+
+                <!-- Color de fondo -->
+                <TextView
+                    android:id="@+id/background_color_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Color de fondo (hex):"
+                    android:layout_marginTop="8dp" />
+
+                <EditText
+                    android:id="@+id/background_color_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:hint="000000"
+                    android:padding="8dp" />
+
+                <!-- Alpha de fondo -->
+                <TextView
+                    android:id="@+id/background_alpha_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Alpha de fondo (0-255):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/background_alpha_container"
+                    layout="@layout/number_input_with_controls" />
+
+                <!-- Tamaño del icono -->
+                <TextView
+                    android:id="@+id/icon_size_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tamaño del icono (dp):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/icon_size_container"
+                    layout="@layout/number_input_with_controls" />
+
+                <!-- Border radius -->
+                <TextView
+                    android:id="@+id/border_radius_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Border Radius (dp):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/border_radius_container"
+                    layout="@layout/number_input_with_controls" />
+
+                <!-- Gap entre iconos -->
+                <TextView
+                    android:id="@+id/icon_gap_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Separación entre iconos (dp):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/icon_gap_container"
+                    layout="@layout/number_input_with_controls" />
+
+            </LinearLayout>
+
+            <!-- Columna 2 -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="4dp">
+
+                <!-- Color de iconos -->
+                <TextView
+                    android:id="@+id/icon_color_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Color de iconos (hex):"
+                    android:layout_marginTop="8dp" />
+
+                <EditText
+                    android:id="@+id/icon_color_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:hint="FFFFFF"
+                    android:padding="8dp" />
+
+                <!-- Alpha de iconos -->
+                <TextView
+                    android:id="@+id/icon_alpha_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Alpha de iconos (0-255):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/icon_alpha_container"
+                    layout="@layout/number_input_with_controls" />
+
+                <!-- Padding de iconos -->
+                <TextView
+                    android:id="@+id/icon_padding_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Padding de iconos (dp):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/icon_padding_container"
+                    layout="@layout/number_input_with_controls" />
+
+                <!-- Margen de posición -->
+                <TextView
+                    android:id="@+id/position_margin_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Margen desde bordes (dp):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/position_margin_container"
+                    layout="@layout/number_input_with_controls" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Botones -->
+        <Button
+            android:id="@+id/save_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Guardar Configuración"
+            android:layout_marginTop="16dp" />
+
+        <Button
+            android:id="@+id/start_service_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Iniciar/Reiniciar Servicio"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
