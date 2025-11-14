@@ -41,11 +41,19 @@ public class SelectAppActivity extends AppCompatActivity {
                 @Override
                 public void onAppClick(AppInfo appInfo) {
                     try {
-                        // Ir a seleccionar icono
-                        Intent intent = new Intent(SelectAppActivity.this, SelectIconActivity.class);
-                        intent.putExtra("package_name", appInfo.getPackageName());
-                        startActivity(intent);
-                        finish();
+                        String packageName = appInfo.getPackageName();
+                        
+                        // Verificar si la app tiene múltiples activities
+                        if (ActivityUtils.hasMultipleActivities(SelectAppActivity.this, packageName)) {
+                            // Mostrar diálogo para seleccionar activity
+                            showActivitySelectionDialog(packageName);
+                        } else {
+                            // Ir directamente a seleccionar icono
+                            Intent intent = new Intent(SelectAppActivity.this, SelectIconActivity.class);
+                            intent.putExtra("package_name", packageName);
+                            startActivity(intent);
+                            finish();
+                        }
                     } catch (Exception e) {
                         android.util.Log.e("SelectAppActivity", "Error al abrir SelectIconActivity", e);
                         Toast.makeText(SelectAppActivity.this, "Error al abrir selección de icono", Toast.LENGTH_SHORT).show();
@@ -183,6 +191,53 @@ public class SelectAppActivity extends AppCompatActivity {
             return true;
         } catch (PackageManager.NameNotFoundException e) {
             return false;
+        }
+    }
+    
+    private void showActivitySelectionDialog(String packageName) {
+        try {
+            List<ActivityInfo> activities = ActivityUtils.getLaunchableActivities(this, packageName);
+            
+            if (activities == null || activities.isEmpty()) {
+                // Si no hay activities, ir directamente a seleccionar icono
+                Intent intent = new Intent(SelectAppActivity.this, SelectIconActivity.class);
+                intent.putExtra("package_name", packageName);
+                startActivity(intent);
+                finish();
+                return;
+            }
+            
+            // Crear array de labels para el diálogo
+            String[] labels = new String[activities.size()];
+            for (int i = 0; i < activities.size(); i++) {
+                labels[i] = activities.get(i).getLabel();
+            }
+            
+            new AlertDialog.Builder(this)
+                .setTitle("Seleccionar Activity")
+                .setMessage("Esta app tiene múltiples activities. Selecciona cuál deseas usar:")
+                .setItems(labels, (dialog, which) -> {
+                    try {
+                        ActivityInfo selectedActivity = activities.get(which);
+                        Intent intent = new Intent(SelectAppActivity.this, SelectIconActivity.class);
+                        intent.putExtra("package_name", selectedActivity.getPackageName());
+                        intent.putExtra("activity_name", selectedActivity.getActivityName());
+                        startActivity(intent);
+                        finish();
+                    } catch (Exception e) {
+                        android.util.Log.e("SelectAppActivity", "Error al seleccionar activity", e);
+                        Toast.makeText(SelectAppActivity.this, "Error al seleccionar activity", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+        } catch (Exception e) {
+            android.util.Log.e("SelectAppActivity", "Error al mostrar diálogo de activities", e);
+            // Si falla, ir directamente a seleccionar icono
+            Intent intent = new Intent(SelectAppActivity.this, SelectIconActivity.class);
+            intent.putExtra("package_name", packageName);
+            startActivity(intent);
+            finish();
         }
     }
 }

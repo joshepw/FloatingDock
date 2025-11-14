@@ -47,7 +47,17 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         DockApp dockApp = dockApps.get(position);
         
-        holder.packageNameText.setText(dockApp.getPackageName());
+        // Mostrar package name y activity si existe
+        String displayText = dockApp.getPackageName();
+        if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
+            String activityShortName = dockApp.getActivityName();
+            // Extraer solo el nombre de la clase sin el package completo
+            if (activityShortName.contains(".")) {
+                activityShortName = activityShortName.substring(activityShortName.lastIndexOf('.') + 1);
+            }
+            displayText += " (" + activityShortName + ")";
+        }
+        holder.packageNameText.setText(displayText);
         
         String iconName = dockApp.getMaterialIconName();
         

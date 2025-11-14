@@ -233,6 +233,9 @@ public class MainActivity extends AppCompatActivity {
                             Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
                             intent.putExtra("package_name", dockApp.getPackageName());
                             intent.putExtra("current_icon", dockApp.getMaterialIconName());
+                            if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
+                                intent.putExtra("activity_name", dockApp.getActivityName());
+                            }
                             intent.putExtra("index", position);
                             startActivity(intent);
                         } else {

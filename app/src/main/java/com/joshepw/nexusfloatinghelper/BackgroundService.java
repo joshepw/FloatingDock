@@ -240,10 +240,11 @@ public class BackgroundService extends Service {
             
             // Configurar click listener
             final String packageName = dockApp.getPackageName();
+            final String activityName = dockApp.getActivityName();
             iconView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    openApp(packageName);
+                    openApp(packageName, activityName);
                 }
             });
             
@@ -252,14 +253,41 @@ public class BackgroundService extends Service {
     }
     
     private void openApp(String packageName) {
+        openApp(packageName, null);
+    }
+    
+    private void openApp(String packageName, String activityName) {
         try {
             PackageManager pm = getPackageManager();
-            Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
+            Intent launchIntent = null;
+            
+            // Si hay una activity específica, usarla
+            if (activityName != null && !activityName.isEmpty()) {
+                try {
+                    launchIntent = new Intent();
+                    launchIntent.setClassName(packageName, activityName);
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    
+                    // Verificar que la activity existe
+                    if (launchIntent.resolveActivity(pm) == null) {
+                        Log.w(TAG, "Activity no encontrada: " + activityName + ", intentando método alternativo");
+                        launchIntent = null;
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Error al crear intent para activity específica: " + activityName, e);
+                    launchIntent = null;
+                }
+            }
+            
+            // Si no hay activity específica o falló, usar el método estándar
+            if (launchIntent == null) {
+                launchIntent = pm.getLaunchIntentForPackage(packageName);
+            }
             
             if (launchIntent != null) {
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(launchIntent);
-                Log.d(TAG, "App abierta: " + packageName);
+                Log.d(TAG, "App abierta: " + packageName + (activityName != null ? " (" + activityName + ")" : ""));
             } else {
                 // Intentar abrir manualmente
                 Intent intent = new Intent(Intent.ACTION_MAIN);

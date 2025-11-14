@@ -29,6 +29,7 @@ public class SelectIconActivity extends AppCompatActivity {
         
         try {
             packageName = getIntent().getStringExtra("package_name");
+            String activityName = getIntent().getStringExtra("activity_name");
             currentIcon = getIntent().getStringExtra("current_icon");
             index = getIntent().getIntExtra("index", -1);
             
@@ -46,6 +47,7 @@ public class SelectIconActivity extends AppCompatActivity {
                 allIconNames = new ArrayList<>();
             }
             
+            final String finalActivityName = activityName;
             adapter = new IconSelectionAdapter(this, iconName -> {
                 try {
                     // Guardar app en el dock
@@ -55,12 +57,15 @@ public class SelectIconActivity extends AppCompatActivity {
                         DockApp dockApp = dockApps.get(index);
                         if (dockApp != null) {
                             dockApp.setMaterialIconName(iconName);
+                            if (finalActivityName != null && !finalActivityName.isEmpty()) {
+                                dockApp.setActivityName(finalActivityName);
+                            }
                             DockAppManager.updateDockApp(this, index, dockApp);
                         }
                     } else {
                         // Agregar nueva app
                         int newIndex = dockApps != null ? dockApps.size() : 0;
-                        DockApp newDockApp = new DockApp(packageName, iconName, newIndex);
+                        DockApp newDockApp = new DockApp(packageName, iconName, finalActivityName, newIndex);
                         DockAppManager.addDockApp(this, newDockApp);
                     }
                     
