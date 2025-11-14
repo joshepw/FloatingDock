@@ -31,14 +31,27 @@ public class MaterialIconDrawable extends Drawable {
     
     private void loadFont() {
         try {
-            // La fuente está en assets/fonts/
-            typeface = Typeface.createFromAsset(context.getAssets(), "fonts/MaterialIcons-Regular.ttf");
+            // La fuente Material Symbols Outlined está en assets/fonts/
+            typeface = Typeface.createFromAsset(context.getAssets(), "fonts/MaterialSymbolsOutlined-Regular.otf");
             paint.setTypeface(typeface);
         } catch (Exception e) {
-            // Si no se puede cargar la fuente, usar la fuente del sistema
-            android.util.Log.e("MaterialIconDrawable", "Error al cargar fuente: " + e.getMessage());
-            typeface = Typeface.DEFAULT;
-            paint.setTypeface(typeface);
+            // Si no se puede cargar, intentar con el nombre alternativo
+            try {
+                typeface = Typeface.createFromAsset(context.getAssets(), "fonts/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf");
+                paint.setTypeface(typeface);
+            } catch (Exception e2) {
+                // Si tampoco funciona, usar la fuente antigua como fallback
+                try {
+                    typeface = Typeface.createFromAsset(context.getAssets(), "fonts/MaterialIcons-Regular.ttf");
+                    paint.setTypeface(typeface);
+                    android.util.Log.w("MaterialIconDrawable", "Usando fuente Material Icons como fallback");
+                } catch (Exception e3) {
+                    // Si no se puede cargar ninguna fuente, usar la fuente del sistema
+                    android.util.Log.e("MaterialIconDrawable", "Error al cargar fuente: " + e3.getMessage());
+                    typeface = Typeface.DEFAULT;
+                    paint.setTypeface(typeface);
+                }
+            }
         }
     }
     

@@ -14,17 +14,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class IconSelectionAdapter extends RecyclerView.Adapter<IconSelectionAdapter.ViewHolder> {
+    private static final String NATIVE_ICON = "native";
+    
     private List<String> iconNames;
     private Context context;
     private OnIconClickListener listener;
+    private String packageName;
     
     public interface OnIconClickListener {
         void onIconClick(String iconName);
     }
     
-    public IconSelectionAdapter(Context context, OnIconClickListener listener) {
+    public IconSelectionAdapter(Context context, OnIconClickListener listener, String packageName) {
         this.context = context;
         this.listener = listener;
+        this.packageName = packageName;
         this.iconNames = new ArrayList<>();
     }
     
@@ -43,16 +47,30 @@ public class IconSelectionAdapter extends RecyclerView.Adapter<IconSelectionAdap
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         String iconName = iconNames.get(position);
-        holder.iconNameText.setText(iconName);
         
-        // Mostrar icono Material
-        MaterialIconDrawable iconDrawable = new MaterialIconDrawable(context);
-        iconDrawable.setIcon(iconName);
-        iconDrawable.setSize(48);
-        iconDrawable.setColor(0xFF000000); // Negro para la lista
-        iconDrawable.setBounds(0, 0, 48, 48);
-        holder.iconView.setImageDrawable(iconDrawable);
-        holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        if (NATIVE_ICON.equals(iconName)) {
+            // Mostrar icono nativo del app
+            holder.iconNameText.setText("Icono nativo");
+            try {
+                android.content.pm.PackageManager pm = context.getPackageManager();
+                android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(packageName);
+                holder.iconView.setImageDrawable(appIcon);
+                holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            } catch (Exception e) {
+                // Si no se puede obtener el icono, mostrar un icono por defecto
+                holder.iconView.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon));
+            }
+        } else {
+            // Mostrar icono Material
+            holder.iconNameText.setText(iconName);
+            MaterialIconDrawable iconDrawable = new MaterialIconDrawable(context);
+            iconDrawable.setIcon(iconName);
+            iconDrawable.setSize(48);
+            iconDrawable.setColor(0xFF000000); // Negro para la lista
+            iconDrawable.setBounds(0, 0, 48, 48);
+            holder.iconView.setImageDrawable(iconDrawable);
+            holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        }
         
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {

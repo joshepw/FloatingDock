@@ -1,6 +1,7 @@
 package com.joshepw.nexusfloatinghelper;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -47,16 +48,34 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
         DockApp dockApp = dockApps.get(position);
         
         holder.packageNameText.setText(dockApp.getPackageName());
-        holder.iconNameText.setText("Icono: " + dockApp.getMaterialIconName());
         
-        // Mostrar icono Material de la app
-        MaterialIconDrawable iconDrawable = new MaterialIconDrawable(context);
-        iconDrawable.setIcon(dockApp.getMaterialIconName());
-        iconDrawable.setSize(48);
-        iconDrawable.setColor(0xFF000000); // Negro para la lista
-        iconDrawable.setBounds(0, 0, 48, 48);
-        holder.iconView.setImageDrawable(iconDrawable);
-        holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        String iconName = dockApp.getMaterialIconName();
+        
+        // Verificar si es icono nativo o Material
+        if ("native".equals(iconName)) {
+            // Mostrar icono nativo del app
+            holder.iconNameText.setText("Icono: Nativo");
+            try {
+                PackageManager pm = context.getPackageManager();
+                android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(dockApp.getPackageName());
+                holder.iconView.setImageDrawable(appIcon);
+                holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            } catch (Exception e) {
+                // Si falla, usar icono por defecto
+                holder.iconView.setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon));
+                holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            }
+        } else {
+            // Mostrar icono Material de la app
+            holder.iconNameText.setText("Icono: " + iconName);
+            MaterialIconDrawable iconDrawable = new MaterialIconDrawable(context);
+            iconDrawable.setIcon(iconName);
+            iconDrawable.setSize(48);
+            iconDrawable.setColor(0xFF000000); // Negro para la lista
+            iconDrawable.setBounds(0, 0, 48, 48);
+            holder.iconView.setImageDrawable(iconDrawable);
+            holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        }
         
         // Icono de editar
         MaterialIconDrawable editIcon = new MaterialIconDrawable(context);

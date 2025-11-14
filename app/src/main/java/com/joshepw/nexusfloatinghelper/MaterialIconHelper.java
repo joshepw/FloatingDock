@@ -1,11 +1,23 @@
 package com.joshepw.nexusfloatinghelper;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 public class MaterialIconHelper {
     public static List<String> getAllIconNames() {
-        return Arrays.asList(
+        // Obtener todos los iconos del mapeo y ordenarlos alfabéticamente
+        Set<String> iconSet = MaterialSymbolsMapper.getAllIconNames();
+        List<String> iconList = new ArrayList<>(iconSet);
+        Collections.sort(iconList);
+        return iconList;
+    }
+    
+    // Método legacy mantenido por compatibilidad (ya no se usa)
+    @Deprecated
+    private static List<String> getLegacyIconNames() {
+        return java.util.Arrays.asList(
             "home", "settings", "apps", "search", "favorite", "star", "menu", "close",
             "arrow_back", "arrow_forward", "add", "delete", "edit", "check", "cancel",
             "refresh", "more_vert", "more_horiz", "share", "info", "warning", "error",

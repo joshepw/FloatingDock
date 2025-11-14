@@ -22,6 +22,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.List;
 
@@ -211,15 +212,31 @@ public class BackgroundService extends Service {
                 iconView.setLayoutParams(layoutParams);
             }
             
-            // Crear y aplicar icono Material
-            MaterialIconDrawable iconDrawable = new MaterialIconDrawable(this);
-            iconDrawable.setIcon(dockApp.getMaterialIconName());
-            iconDrawable.setSize(iconSizePx);
-            iconDrawable.setColor(finalIconColor);
-            // Configurar bounds del drawable
-            iconDrawable.setBounds(0, 0, iconSizePx, iconSizePx);
-            iconView.setImageDrawable(iconDrawable);
-            iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            // Verificar si es icono nativo o Material
+            String iconName = dockApp.getMaterialIconName();
+            if ("native".equals(iconName)) {
+                // Mostrar icono nativo del app
+                try {
+                    PackageManager pm = getPackageManager();
+                    android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(dockApp.getPackageName());
+                    iconView.setImageDrawable(appIcon);
+                    iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error al obtener icono nativo para " + dockApp.getPackageName(), e);
+                    // Si falla, usar icono por defecto
+                    iconView.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.sym_def_app_icon));
+                }
+            } else {
+                // Crear y aplicar icono Material
+                MaterialIconDrawable iconDrawable = new MaterialIconDrawable(this);
+                iconDrawable.setIcon(iconName);
+                iconDrawable.setSize(iconSizePx);
+                iconDrawable.setColor(finalIconColor);
+                // Configurar bounds del drawable
+                iconDrawable.setBounds(0, 0, iconSizePx, iconSizePx);
+                iconView.setImageDrawable(iconDrawable);
+                iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            }
             
             // Configurar click listener
             final String packageName = dockApp.getPackageName();

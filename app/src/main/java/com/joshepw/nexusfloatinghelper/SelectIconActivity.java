@@ -69,7 +69,7 @@ public class SelectIconActivity extends AppCompatActivity {
                     android.util.Log.e("SelectIconActivity", "Error al guardar app", e);
                     android.widget.Toast.makeText(this, "Error al guardar: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
                 }
-            });
+            }, packageName);
             
             iconsRecycler.setLayoutManager(new GridLayoutManager(this, 4));
             iconsRecycler.setAdapter(adapter);
@@ -103,8 +103,14 @@ public class SelectIconActivity extends AppCompatActivity {
             }
             
             List<String> filteredIcons = new ArrayList<>();
-            String lowerQuery = query != null ? query.toLowerCase() : "";
             
+            // Agregar icono nativo como primera opción (solo si no hay búsqueda o la búsqueda coincide)
+            String lowerQuery = query != null ? query.toLowerCase() : "";
+            if (query == null || query.isEmpty() || lowerQuery.contains("native") || lowerQuery.contains("icono") || lowerQuery.contains("nativo")) {
+                filteredIcons.add("native");
+            }
+            
+            // Agregar iconos Material filtrados
             for (String iconName : allIconNames) {
                 if (iconName == null) continue;
                 
