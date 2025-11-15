@@ -1,10 +1,15 @@
 package com.joshepw.nexusfloatinghelper;
 
+import android.content.Context;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class MaterialSymbolsMapper {
     private static final Map<String, String> ICON_MAP = new HashMap<>();
+    private static Map<String, String> dynamicIconMap = null;
+    private static Context appContext = null;
     
     static {
         // Mapeo completo de nombres de iconos Material Symbols Outlined a sus códigos Unicode
@@ -445,27 +450,63 @@ public class MaterialSymbolsMapper {
         // Agregar más iconos según sea necesario
     }
     
+    /**
+     * Inicializa el mapeo dinámico desde JSON si está disponible.
+     * Debe llamarse una vez al inicio de la aplicación.
+     */
+    public static void initialize(Context context) {
+        if (appContext == null && context != null) {
+            appContext = context.getApplicationContext();
+            dynamicIconMap = MaterialSymbolsLoader.loadFromJson(appContext);
+        }
+    }
+    
+    /**
+     * Obtiene el mapa de iconos activo (dinámico desde JSON o manual).
+     */
+    private static Map<String, String> getActiveIconMap() {
+        if (dynamicIconMap != null && !dynamicIconMap.isEmpty()) {
+            return dynamicIconMap;
+        }
+        return ICON_MAP;
+    }
+    
+    /**
+     * Retorna el mapeo manual para uso como fallback.
+     */
+    public static Map<String, String> getManualIconMap() {
+        return ICON_MAP;
+    }
+    
     public static String getUnicode(String iconName) {
-        String unicode = ICON_MAP.get(iconName);
+        Map<String, String> activeMap = getActiveIconMap();
+        String unicode = activeMap.get(iconName);
         if (unicode == null) {
             // Si no se encuentra, intentar con variaciones comunes
             if (iconName.endsWith("_outline")) {
                 String baseName = iconName.replace("_outline", "_border");
-                unicode = ICON_MAP.get(baseName);
+                unicode = activeMap.get(baseName);
             }
             if (unicode == null) {
                 // Default a "apps" si no se encuentra
-                unicode = ICON_MAP.getOrDefault("apps", "\ue5c3");
+                unicode = activeMap.getOrDefault("apps", "\ue5c3");
             }
         }
         return unicode;
     }
     
     public static boolean hasIcon(String iconName) {
-        return ICON_MAP.containsKey(iconName);
+        return getActiveIconMap().containsKey(iconName);
     }
     
-    public static java.util.Set<String> getAllIconNames() {
-        return ICON_MAP.keySet();
+    public static Set<String> getAllIconNames() {
+        return getActiveIconMap().keySet();
+    }
+    
+    /**
+     * Verifica si se está usando el mapeo dinámico desde JSON.
+     */
+    public static boolean isUsingDynamicMapping() {
+        return dynamicIconMap != null && !dynamicIconMap.isEmpty();
     }
 }

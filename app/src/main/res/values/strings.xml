@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NexusFloatingHelper</string>
+    <string name="app_name">Floating Dock</string>
     <string name="service_notification_title">Nexus Floating Helper</string>
     <string name="service_notification_text">Servicio en ejecución</string>
 </resources>

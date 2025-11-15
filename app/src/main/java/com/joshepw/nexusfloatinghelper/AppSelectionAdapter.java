@@ -17,8 +17,9 @@ import java.util.List;
 
 public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int TYPE_MANUAL_ENTRY = 0;
-    private static final int TYPE_SEPARATOR = 1;
-    private static final int TYPE_APP = 2;
+    private static final int TYPE_ADD_ACTION = 1;
+    private static final int TYPE_SEPARATOR = 2;
+    private static final int TYPE_APP = 3;
     
     private List<AppInfo> apps;
     private Context context;
@@ -28,6 +29,7 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     public interface OnAppClickListener {
         void onAppClick(AppInfo appInfo);
         void onManualEntryClick();
+        void onAddActionClick();
     }
     
     public AppSelectionAdapter(Context context, OnAppClickListener listener) {
@@ -50,7 +52,11 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         if (position == 0) {
             return TYPE_MANUAL_ENTRY;
         }
-        if (separatorPosition > 0 && position == separatorPosition + 1) {
+        if (position == 1) {
+            return TYPE_ADD_ACTION;
+        }
+        // Ajustar posición del separador considerando manual entry y add action
+        if (separatorPosition > 0 && position == separatorPosition + 2) {
             return TYPE_SEPARATOR;
         }
         return TYPE_APP;
@@ -63,6 +69,9 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         if (viewType == TYPE_MANUAL_ENTRY) {
             View view = inflater.inflate(R.layout.item_manual_entry, parent, false);
             return new ManualEntryViewHolder(view);
+        } else if (viewType == TYPE_ADD_ACTION) {
+            View view = inflater.inflate(R.layout.item_add_action, parent, false);
+            return new AddActionViewHolder(view);
         } else if (viewType == TYPE_SEPARATOR) {
             View view = inflater.inflate(R.layout.item_separator, parent, false);
             return new SeparatorViewHolder(view);
@@ -80,11 +89,17 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                     listener.onManualEntryClick();
                 }
             });
+        } else if (holder instanceof AddActionViewHolder) {
+            ((AddActionViewHolder) holder).itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onAddActionClick();
+                }
+            });
         } else if (holder instanceof SeparatorViewHolder) {
             // Separador, no necesita binding
         } else if (holder instanceof AppViewHolder) {
-            int appPosition = position - 1; // Restar manual entry
-            if (separatorPosition > 0 && position > separatorPosition + 1) {
+            int appPosition = position - 2; // Restar manual entry y add action
+            if (separatorPosition > 0 && position > separatorPosition + 2) {
                 appPosition--; // Restar separator
             }
             
@@ -97,7 +112,7 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     
     @Override
     public int getItemCount() {
-        int count = 1; // Manual entry
+        int count = 2; // Manual entry + Add action
         if (separatorPosition > 0) {
             count++; // Separator
         }
@@ -107,6 +122,12 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     
     static class ManualEntryViewHolder extends RecyclerView.ViewHolder {
         ManualEntryViewHolder(View itemView) {
+            super(itemView);
+        }
+    }
+    
+    static class AddActionViewHolder extends RecyclerView.ViewHolder {
+        AddActionViewHolder(View itemView) {
             super(itemView);
         }
     }

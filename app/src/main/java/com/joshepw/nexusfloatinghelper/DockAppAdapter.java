@@ -47,15 +47,27 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         DockApp dockApp = dockApps.get(position);
         
-        // Mostrar package name y activity si existe
-        String displayText = dockApp.getPackageName();
-        if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
-            String activityShortName = dockApp.getActivityName();
-            // Extraer solo el nombre de la clase sin el package completo
-            if (activityShortName.contains(".")) {
-                activityShortName = activityShortName.substring(activityShortName.lastIndexOf('.') + 1);
+        // Mostrar información según si es app o acción
+        String displayText;
+        if (dockApp.isAction()) {
+            // Es una acción del sistema
+            SystemAction action = SystemActionHelper.getActionById(dockApp.getActionId());
+            if (action != null) {
+                displayText = action.getActionName();
+            } else {
+                displayText = "Acción: " + dockApp.getActionId();
             }
-            displayText += " (" + activityShortName + ")";
+        } else {
+            // Es una app normal
+            displayText = dockApp.getPackageName();
+            if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
+                String activityShortName = dockApp.getActivityName();
+                // Extraer solo el nombre de la clase sin el package completo
+                if (activityShortName.contains(".")) {
+                    activityShortName = activityShortName.substring(activityShortName.lastIndexOf('.') + 1);
+                }
+                displayText += " (" + activityShortName + ")";
+            }
         }
         holder.packageNameText.setText(displayText);
         
@@ -63,17 +75,23 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
         
         // Verificar si es icono nativo o Material
         if ("native".equals(iconName)) {
-            // Mostrar icono nativo del app
+            // Mostrar icono nativo del app (solo para apps, no para acciones)
             holder.iconNameText.setText("Icono: Nativo");
-            try {
-                PackageManager pm = context.getPackageManager();
-                android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(dockApp.getPackageName());
-                holder.iconView.setImageDrawable(appIcon);
-                holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            } catch (Exception e) {
-                // Si falla, usar icono por defecto
+            if (dockApp.isAction()) {
+                // Para acciones, usar icono por defecto
                 holder.iconView.setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon));
                 holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            } else {
+                try {
+                    PackageManager pm = context.getPackageManager();
+                    android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(dockApp.getPackageName());
+                    holder.iconView.setImageDrawable(appIcon);
+                    holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                } catch (Exception e) {
+                    // Si falla, usar icono por defecto
+                    holder.iconView.setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon));
+                    holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                }
             }
         } else {
             // Mostrar icono Material de la app

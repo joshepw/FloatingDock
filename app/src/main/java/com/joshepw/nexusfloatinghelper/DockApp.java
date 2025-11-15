@@ -5,6 +5,8 @@ public class DockApp {
     private String materialIconName;
     private String activityName; // Activity específica a lanzar (opcional)
     private int index;
+    private String actionType; // "app" o "action" para diferenciar apps de acciones del sistema
+    private String actionId; // ID de la acción del sistema (ej: "home", "back", "volume_up", etc.)
     
     public DockApp(String packageName, String materialIconName, int index) {
         this(packageName, materialIconName, null, index);
@@ -15,6 +17,18 @@ public class DockApp {
         this.materialIconName = materialIconName;
         this.activityName = activityName;
         this.index = index;
+        this.actionType = "app"; // Por defecto es una app
+        this.actionId = null;
+    }
+    
+    // Constructor para acciones del sistema
+    public DockApp(String actionId, String materialIconName, int index, boolean isAction) {
+        this.actionId = actionId;
+        this.materialIconName = materialIconName;
+        this.index = index;
+        this.actionType = "action";
+        this.packageName = null;
+        this.activityName = null;
     }
     
     public String getPackageName() {
@@ -33,12 +47,32 @@ public class DockApp {
         return index;
     }
     
+    public String getActionType() {
+        return actionType != null ? actionType : "app";
+    }
+    
+    public String getActionId() {
+        return actionId;
+    }
+    
+    public boolean isAction() {
+        return "action".equals(actionType);
+    }
+    
     public void setMaterialIconName(String materialIconName) {
         this.materialIconName = materialIconName;
     }
     
     public void setActivityName(String activityName) {
         this.activityName = activityName;
+    }
+    
+    public void setActionType(String actionType) {
+        this.actionType = actionType;
+    }
+    
+    public void setActionId(String actionId) {
+        this.actionId = actionId;
     }
 }
 

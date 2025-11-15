@@ -61,6 +61,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Inicializar mapeo dinámico de iconos Material Symbols
+        MaterialSymbolsMapper.initialize(this);
+        
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         
@@ -240,36 +244,50 @@ public class MainActivity extends AppCompatActivity {
                     if (position >= 0 && position < dockApps.size()) {
                         DockApp dockApp = dockApps.get(position);
                         if (dockApp != null) {
-                            String packageName = dockApp.getPackageName();
-                            
-                            // Verificar si la app tiene múltiples activities
-                            if (ActivityUtils.hasMultipleActivities(MainActivity.this, packageName)) {
-                                // Abrir SelectActivityActivity para seleccionar activity
-                                Intent intent = new Intent(MainActivity.this, SelectActivityActivity.class);
-                                intent.putExtra("package_name", packageName);
+                            // Verificar si es una acción del sistema
+                            if (dockApp.isAction()) {
+                                // Para acciones, ir directamente a seleccionar icono
+                                SystemAction action = SystemActionHelper.getActionById(dockApp.getActionId());
+                                Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
+                                intent.putExtra("action_id", dockApp.getActionId());
+                                intent.putExtra("action_name", action != null ? action.getActionName() : dockApp.getActionId());
                                 intent.putExtra("current_icon", dockApp.getMaterialIconName());
                                 intent.putExtra("index", position);
-                                intent.putExtra("is_editing", true); // Indicar que estamos editando
+                                intent.putExtra("is_action", true);
                                 startActivity(intent);
                             } else {
-                                // Si solo tiene una activity, ir directamente a seleccionar icono
-                                Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
-                                intent.putExtra("package_name", packageName);
-                                intent.putExtra("current_icon", dockApp.getMaterialIconName());
-                                if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
-                                    intent.putExtra("activity_name", dockApp.getActivityName());
+                                // Es una app normal
+                                String packageName = dockApp.getPackageName();
+                                
+                                // Verificar si la app tiene múltiples activities
+                                if (ActivityUtils.hasMultipleActivities(MainActivity.this, packageName)) {
+                                    // Abrir SelectActivityActivity para seleccionar activity
+                                    Intent intent = new Intent(MainActivity.this, SelectActivityActivity.class);
+                                    intent.putExtra("package_name", packageName);
+                                    intent.putExtra("current_icon", dockApp.getMaterialIconName());
+                                    intent.putExtra("index", position);
+                                    intent.putExtra("is_editing", true); // Indicar que estamos editando
+                                    startActivity(intent);
+                                } else {
+                                    // Si solo tiene una activity, ir directamente a seleccionar icono
+                                    Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
+                                    intent.putExtra("package_name", packageName);
+                                    intent.putExtra("current_icon", dockApp.getMaterialIconName());
+                                    if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
+                                        intent.putExtra("activity_name", dockApp.getActivityName());
+                                    }
+                                    intent.putExtra("index", position);
+                                    startActivity(intent);
                                 }
-                                intent.putExtra("index", position);
-                                startActivity(intent);
                             }
                         } else {
-                            Toast.makeText(MainActivity.this, "Error: App no encontrada", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, "Error: App/Acción no encontrada", Toast.LENGTH_SHORT).show();
                         }
                     } else {
                         Toast.makeText(MainActivity.this, "Error: Posición inválida", Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
-                    android.util.Log.e("MainActivity", "Error al editar app", e);
+                    android.util.Log.e("MainActivity", "Error al editar app/acción", e);
                     Toast.makeText(MainActivity.this, "Error al editar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
@@ -307,15 +325,42 @@ public class MainActivity extends AppCompatActivity {
             if (app1 == null && app2 == null) continue;
             if (app1 == null || app2 == null) return false;
             
-            // Comparar package name, icon name y activity name
-            if (!app1.getPackageName().equals(app2.getPackageName())) return false;
-            if (!app1.getMaterialIconName().equals(app2.getMaterialIconName())) return false;
+            // Comparar actionType primero
+            String actionType1 = app1.getActionType();
+            String actionType2 = app2.getActionType();
+            if (actionType1 == null) actionType1 = "app";
+            if (actionType2 == null) actionType2 = "app";
+            if (!actionType1.equals(actionType2)) return false;
             
-            String activity1 = app1.getActivityName();
-            String activity2 = app2.getActivityName();
-            if (activity1 == null) activity1 = "";
-            if (activity2 == null) activity2 = "";
-            if (!activity1.equals(activity2)) return false;
+            // Si son acciones, comparar actionId
+            if ("action".equals(actionType1)) {
+                String actionId1 = app1.getActionId();
+                String actionId2 = app2.getActionId();
+                if (actionId1 == null) actionId1 = "";
+                if (actionId2 == null) actionId2 = "";
+                if (!actionId1.equals(actionId2)) return false;
+            } else {
+                // Si son apps, comparar package name
+                String packageName1 = app1.getPackageName();
+                String packageName2 = app2.getPackageName();
+                if (packageName1 == null) packageName1 = "";
+                if (packageName2 == null) packageName2 = "";
+                if (!packageName1.equals(packageName2)) return false;
+                
+                // Comparar activity name
+                String activity1 = app1.getActivityName();
+                String activity2 = app2.getActivityName();
+                if (activity1 == null) activity1 = "";
+                if (activity2 == null) activity2 = "";
+                if (!activity1.equals(activity2)) return false;
+            }
+            
+            // Comparar icon name (siempre)
+            String iconName1 = app1.getMaterialIconName();
+            String iconName2 = app2.getMaterialIconName();
+            if (iconName1 == null) iconName1 = "";
+            if (iconName2 == null) iconName2 = "";
+            if (!iconName1.equals(iconName2)) return false;
         }
         return true;
     }

@@ -66,7 +66,7 @@ public class BackgroundService extends Service {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.service_notification_title))
             .setContentText(getString(R.string.service_notification_text))
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build();
@@ -426,10 +426,19 @@ public class BackgroundService extends Service {
             // Configurar click listener
             final String packageName = dockApp.getPackageName();
             final String activityName = dockApp.getActivityName();
+            final String actionId = dockApp.getActionId();
+            final boolean isAction = dockApp.isAction();
+            
             iconView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    openApp(packageName, activityName);
+                    if (isAction && actionId != null) {
+                        // Ejecutar acción del sistema
+                        ActionExecutor.executeAction(BackgroundService.this, actionId);
+                    } else {
+                        // Abrir app normal
+                        openApp(packageName, activityName);
+                    }
                 }
             });
             

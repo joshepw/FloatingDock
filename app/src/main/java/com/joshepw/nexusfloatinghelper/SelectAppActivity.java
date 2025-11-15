@@ -66,6 +66,14 @@ public class SelectAppActivity extends AppCompatActivity {
                 public void onManualEntryClick() {
                     showManualEntryDialog();
                 }
+                
+                @Override
+                public void onAddActionClick() {
+                    // Abrir Activity para seleccionar acción del sistema
+                    Intent intent = new Intent(SelectAppActivity.this, SelectActionActivity.class);
+                    startActivity(intent);
+                    finish();
+                }
             });
             
             appsRecycler.setLayoutManager(new LinearLayoutManager(this));
