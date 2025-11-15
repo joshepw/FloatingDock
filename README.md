@@ -10,9 +10,9 @@ Un dock flotante personalizable para Android que te permite acceder rápidamente
 
 ## 📥 Descarga
 
-[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/[TU_USUARIO]/[TU_REPOSITORIO]/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/joshepw/FloatingDock/releases/latest)
 
-**Descarga la última versión del APK desde los [Releases](https://github.com/[TU_USUARIO]/[TU_REPOSITORIO]/releases/latest)**
+**Descarga la última versión del APK desde los [Releases](https://github.com/joshepw/FloatingDock/releases/latest)**
 
 ## 📱 Descripción
 
@@ -39,7 +39,7 @@ Floating Dock es una aplicación que crea un dock flotante en tu dispositivo And
 
 ## 🚀 Instalación
 
-1. Descarga el archivo APK desde la sección [Descarga](#-descarga) arriba o desde los [Releases](https://github.com/[TU_USUARIO]/[TU_REPOSITORIO]/releases/latest)
+1. Descarga el archivo APK desde la sección [Descarga](#-descarga) arriba o desde los [Releases](https://github.com/joshepw/FloatingDock/releases/latest)
 2. Habilita la instalación desde fuentes desconocidas en tu dispositivo Android
 3. Instala el APK
 4. Abre la aplicación y otorga los permisos necesarios:
