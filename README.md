@@ -1,6 +1,6 @@
 # Floating Dock
 
-Un dock flotante personalizable para Android que te permite acceder rápidamente a tus aplicaciones favoritas y acciones del sistema desde cualquier pantalla.
+A customizable floating dock for Android that allows you to quickly access your favorite applications and system actions from any screen.
 
 <div align="center">
   <img src="docs/screenshot_1.png" alt="Screenshot 1" width="30%">
@@ -8,131 +8,145 @@ Un dock flotante personalizable para Android que te permite acceder rápidamente
   <img src="docs/screenshot_3.png" alt="Screenshot 3" width="30%">
 </div>
 
-## 📥 Descarga
+## 📥 Download
 
 [![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/joshepw/FloatingDock/releases/latest)
 
-**Descarga la última versión del APK desde los [Releases](https://github.com/joshepw/FloatingDock/releases/latest)**
+**Download the latest APK version from [Releases](https://github.com/joshepw/FloatingDock/releases/latest)**
 
-## 📱 Descripción
+## 📱 Description
 
-Floating Dock es una aplicación que crea un dock flotante en tu dispositivo Android, permitiéndote acceder rápidamente a tus aplicaciones y acciones del sistema sin necesidad de volver al launcher. El dock se muestra sobre otras aplicaciones y se puede personalizar completamente según tus preferencias.
+Floating Dock is an application that creates a floating dock on your Android device, allowing you to quickly access your applications and system actions without needing to return to the launcher. The dock appears over other applications and can be fully customized according to your preferences.
 
-## ✨ Características
+## ✨ Features
 
-- **Dock Flotante**: Accede a tus aplicaciones favoritas desde cualquier pantalla
-- **Acciones del Sistema**: Controla funciones como Home, Back, Volumen, Reproducción de medios, y más
-- **Personalización Completa**:
-  - Tamaño de iconos configurable
-  - Posición inicial del dock (9 posiciones disponibles)
-  - Color y transparencia del fondo
-  - Color y transparencia de los iconos
-  - Border radius del dock
-  - Separación entre iconos
-  - Padding de iconos
-  - Márgenes desde los bordes
-- **Iconos Material Symbols**: Más de 4,000 iconos disponibles
-- **Iconos Nativos**: Opción de usar el icono nativo de cada aplicación
-- **Selección de Actividades**: Para apps con múltiples actividades (como launchers de auto)
-- **Inicio Automático**: El servicio se inicia automáticamente al arrancar el sistema
-- **Detección de Teclado**: El dock se oculta automáticamente cuando se abre el teclado
+- **Floating Dock**: Access your favorite applications from any screen
+- **System Actions**: Control functions like Home, Back, Volume, Media playback, and more
+- **Full Customization**:
+  - Configurable icon size
+  - Initial dock position (9 positions available)
+  - Background color and transparency
+  - Icon color and transparency
+  - Dock border radius
+  - Icon spacing
+  - Icon padding
+  - Margins from edges
+- **Material Symbols Icons**: Over 4,000 icons available
+- **Native Icons**: Option to use each application's native icon
+- **Activity Selection**: For apps with multiple activities (like car launchers)
+- **Auto Start**: The service starts automatically on system boot
+- **Keyboard Detection**: The dock automatically hides when the keyboard opens
 
-## 🚀 Instalación
+## 🚀 Installation
 
-1. Descarga el archivo APK desde la sección [Descarga](#-descarga) arriba o desde los [Releases](https://github.com/joshepw/FloatingDock/releases/latest)
-2. Habilita la instalación desde fuentes desconocidas en tu dispositivo Android
-3. Instala el APK
-4. Abre la aplicación y otorga los permisos necesarios:
-   - **Permiso de superposición**: Necesario para mostrar el dock sobre otras aplicaciones
-   - **Permiso de inicio automático**: Para que el servicio se inicie al arrancar el dispositivo
+1. Download the APK file from the [Download](#-download) section above or from [Releases](https://github.com/joshepw/FloatingDock/releases/latest)
+2. Enable installation from unknown sources on your Android device
+3. Install the APK
+4. Open the application and grant the necessary permissions:
+   - **Overlay permission**: Required to display the dock over other applications
+   - **Auto-start permission**: For the service to start on device boot
 
-## 📖 Cómo Usar
+## 📖 How to Use
 
-### Configuración Inicial
+### Initial Setup
 
-1. **Permisos**: Al abrir la app por primera vez, se te solicitará el permiso de superposición. Ve a Configuración y habilita "Mostrar sobre otras aplicaciones" para Floating Dock.
+1. **Permissions**: When opening the app for the first time, you will be prompted for overlay permission. Go to Settings and enable "Display over other apps" for Floating Dock.
 
-2. **Agregar Aplicaciones al Dock**:
-   - Toca el botón "Agregar app al dock"
-   - Selecciona una aplicación de la lista
-   - Si la app tiene múltiples actividades, selecciona la que deseas usar
-   - Elige un icono Material Symbol o usa el icono nativo de la app
-   - El dock se actualizará automáticamente
+2. **Adding Applications to the Dock**:
+   - Tap the "Add app to dock" button
+   - Select an application from the list
+   - If the app has multiple activities, select the one you want to use
+   - Choose a Material Symbol icon or use the app's native icon
+   - The dock will update automatically
 
-3. **Agregar Acciones del Sistema**:
-   - Toca el botón "Agregar app al dock"
-   - Selecciona "Agregar acción del sistema"
-   - Elige la acción que deseas (Home, Back, Volumen, etc.)
-   - Selecciona un icono Material Symbol
-   - La acción se agregará al dock
+3. **Adding System Actions**:
+   - Tap the "Add app to dock" button
+   - Select "Add system action"
+   - Choose the action you want (Home, Back, Volume, etc.)
+   - Select a Material Symbol icon
+   - The action will be added to the dock
 
-### Personalización del Dock
+### Dock Customization
 
-Todas las configuraciones se guardan automáticamente y se aplican inmediatamente:
+All settings are saved automatically and applied immediately:
 
-- **Tamaño del Icono**: Ajusta el tamaño de los iconos en el dock (en dp)
-- **Posición Inicial**: Selecciona dónde aparecerá el dock (superior izquierda, centro, inferior derecha, etc.)
-- **Border Radius**: Controla qué tan redondeadas son las esquinas del dock
-- **Color de Fondo**: Personaliza el color del fondo del dock
-- **Transparencia de Fondo**: Ajusta la opacidad del fondo (0-255)
-- **Color de Iconos**: Cambia el color de los iconos del dock
-- **Transparencia de Iconos**: Ajusta la opacidad de los iconos (0-255)
-- **Separación entre Iconos**: Controla el espacio entre los iconos del dock
-- **Padding de Iconos**: Ajusta el espacio interno de cada icono
-- **Márgenes**: Configura la distancia del dock desde los bordes de la pantalla (horizontal y vertical)
+- **Icon Size**: Adjust the size of icons in the dock (in dp)
+- **Initial Position**: Select where the dock will appear (top left, center, bottom right, etc.)
+- **Border Radius**: Control how rounded the dock corners are
+- **Background Color**: Customize the dock background color
+- **Background Transparency**: Adjust background opacity (0-255)
+- **Icon Color**: Change the color of dock icons
+- **Icon Transparency**: Adjust icon opacity (0-255)
+- **Icon Spacing**: Control the space between dock icons
+- **Icon Padding**: Adjust the internal space of each icon
+- **Margins**: Configure the dock distance from screen edges (horizontal and vertical)
 
-### Gestión de Aplicaciones
+### Application Management
 
-- **Editar**: Toca el icono de editar para cambiar el icono o la actividad de una app
-- **Eliminar**: Toca el icono de eliminar para quitar una app del dock
-- **Reordenar**: Las apps se muestran en el orden en que fueron agregadas
+- **Edit**: Tap the edit icon to change an app's icon or activity
+- **Delete**: Tap the delete icon to remove an app from the dock
+- **Reorder**: Apps are displayed in the order they were added
 
-## 🎯 Casos de Uso
+## 🎯 Use Cases
 
-- **Automóviles con Android**: Acceso rápido a Radio, AC, Navegación y otras apps del sistema
-- **Productividad**: Acceso rápido a aplicaciones de trabajo sin salir de la app actual
-- **Gaming**: Control rápido de funciones del sistema durante el juego
-- **Accesibilidad**: Facilita el acceso a aplicaciones para usuarios con dificultades de movilidad
+- **Android Cars**: Quick access to Radio, AC, Navigation, and other system apps
+- **Productivity**: Quick access to work applications without leaving the current app
+- **Gaming**: Quick control of system functions during gameplay
+- **Accessibility**: Facilitates app access for users with mobility difficulties
 
-## ⚙️ Requisitos
+## ⚙️ Requirements
 
-- Android 7.0 (Nougat) o superior
-- Permiso de superposición (SYSTEM_ALERT_WINDOW)
-- Permiso de inicio automático (opcional pero recomendado)
+- Android 7.0 (Nougat) or higher
+- Overlay permission (SYSTEM_ALERT_WINDOW)
+- Auto-start permission (optional but recommended)
 
-## 🔧 Solución de Problemas
+## 🔧 Troubleshooting
 
-### El dock no aparece
-- Verifica que tengas el permiso de superposición habilitado
-- Reinicia la aplicación
-- Verifica que hayas agregado al menos una aplicación al dock
+### The dock doesn't appear
+- Verify that you have overlay permission enabled
+- Restart the application
+- Verify that you have added at least one application to the dock
 
-### El servicio no inicia automáticamente
-- Algunos fabricantes requieren habilitar manualmente el inicio automático en Configuración > Aplicaciones > Floating Dock > Inicio automático
-- Reinicia el dispositivo después de habilitar el permiso
+### The service doesn't start automatically
+- Some manufacturers require manually enabling auto-start in Settings > Apps > Floating Dock > Auto-start
+- Restart the device after enabling the permission
 
-### Los iconos no se muestran correctamente
-- Asegúrate de que la fuente Material Symbols esté instalada correctamente
-- Si un icono no aparece, intenta seleccionar otro de la lista
+### Icons don't display correctly
+- Make sure the Material Symbols font is installed correctly
+- If an icon doesn't appear, try selecting another from the list
 
-## 📝 Notas
+## 📝 Notes
 
-- El dock se oculta automáticamente cuando se abre el teclado
-- Los cambios en la configuración se aplican inmediatamente sin necesidad de guardar
-- El servicio corre en segundo plano y consume recursos mínimos
-- La aplicación requiere el permiso de superposición para funcionar correctamente
+- The dock automatically hides when the keyboard opens
+- Configuration changes are applied immediately without needing to save
+- The service runs in the background and consumes minimal resources
+- The application requires overlay permission to function correctly
 
-## 🤝 Contribuciones
+## 🤝 Contributions
 
-Las contribuciones son bienvenidas. Si encuentras un bug o tienes una sugerencia, por favor abre un issue en el repositorio.
+Contributions are welcome. If you find a bug or have a suggestion, please open an issue in the repository.
 
-## 📄 Licencia
+## 🎨 Development Credits
 
-Este proyecto es de código abierto y está disponible bajo la licencia que se especifique en el repositorio.
+This application was developed **100% through AI-assisted prompts** as an experiment to demonstrate the quality and capabilities of AI-powered development. The entire codebase, features, and functionality were created through iterative prompt-based development.
 
-## 💰 Donaciones
+### AI Development Statistics
 
-Si este proyecto te ha sido útil y deseas apoyar su desarrollo, puedes hacer una donación usando criptomonedas:
+- **Development Method**: 100% prompt-based development
+- **Approximate Prompts**: 60+ user prompts/interactions
+- **AI Assistant**: Auto (Cursor AI)
+- **Development Approach**: Iterative feature development through natural language instructions
+- **Token Usage**: Significant token usage throughout the development process (exact count not available, but represents substantial AI processing for code generation, debugging, and feature implementation)
+
+This project serves as a testament to how modern AI coding assistants can help create fully functional, production-ready Android applications through clear communication and iterative refinement. Every feature, from basic UI components to complex animations and system integrations, was developed through natural language prompts and AI-generated code.
+
+## 📄 License
+
+This project is open source and available under the license specified in the repository.
+
+## 💰 Donations
+
+If this project has been useful to you and you wish to support its development, you can make a donation using cryptocurrencies:
 
 ### Bitcoin (BTC)
 
@@ -158,8 +172,8 @@ bc1q9nlvf63ny8sn0wwy0jmgl0d0qtsepffqhx2uqh
 0xFC9279fEe715Db4225cfbdde25595E701bfC3265
 ```
 
-**Nota**: USDC es un token ERC-20 en la red de Ethereum. Esta dirección también puede recibir cualquier token ERC-20 (USDT, DAI, UNI, etc.) y cualquier otra red compatible con direcciones Ethereum (Polygon, BSC, Arbitrum, Optimism, etc.).
+**Note**: USDC is an ERC-20 token on the Ethereum network. This address can also receive any ERC-20 token (USDT, DAI, UNI, etc.) and any other network compatible with Ethereum addresses (Polygon, BSC, Arbitrum, Optimism, etc.).
 
 ---
 
-**Desarrollado con ❤️ para la comunidad Android**
+**Developed with ❤️ for the Android community**
