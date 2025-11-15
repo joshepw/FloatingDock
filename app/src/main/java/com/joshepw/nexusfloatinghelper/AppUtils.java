@@ -128,7 +128,17 @@ public class AppUtils {
                         // Si falla, asumir que no es lanzable
                     }
                     
-                    apps.add(new AppInfo(packageName, appName, icon, isSystemApp, isLaunchable));
+                    // Verificar si tiene múltiples activities (solo para apps lanzables)
+                    boolean hasMultipleActivities = false;
+                    if (isLaunchable) {
+                        try {
+                            hasMultipleActivities = ActivityUtils.hasMultipleActivities(context, packageName);
+                        } catch (Exception e) {
+                            // Si falla, asumir que no tiene múltiples activities
+                        }
+                    }
+                    
+                    apps.add(new AppInfo(packageName, appName, icon, isSystemApp, isLaunchable, hasMultipleActivities));
                 } catch (PackageManager.NameNotFoundException e) {
                     Log.w(TAG, "App no encontrada: " + packageName);
                 } catch (Exception e) {

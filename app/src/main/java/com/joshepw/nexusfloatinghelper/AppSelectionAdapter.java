@@ -121,12 +121,14 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         ImageView iconView;
         TextView nameText;
         TextView packageText;
+        ImageView multipleActivitiesIndicator;
         
         AppViewHolder(View itemView) {
             super(itemView);
             iconView = itemView.findViewById(R.id.app_icon);
             nameText = itemView.findViewById(R.id.app_name);
             packageText = itemView.findViewById(R.id.app_package);
+            multipleActivitiesIndicator = itemView.findViewById(R.id.multiple_activities_indicator);
         }
         
         void bind(AppInfo appInfo) {
@@ -150,6 +152,11 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                         icon = ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon);
                     }
                     iconView.setImageDrawable(icon);
+                }
+                
+                // Ocultar indicador de múltiples activities (ya no se muestra)
+                if (multipleActivitiesIndicator != null) {
+                    multipleActivitiesIndicator.setVisibility(View.GONE);
                 }
                 
                 itemView.setOnClickListener(v -> {

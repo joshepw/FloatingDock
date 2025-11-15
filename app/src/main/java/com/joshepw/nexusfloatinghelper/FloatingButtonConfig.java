@@ -14,7 +14,8 @@ public class FloatingButtonConfig {
     private static final String KEY_ICON_ALPHA = "icon_alpha";
     private static final String KEY_ICON_GAP = "icon_gap";
     private static final String KEY_ICON_PADDING = "icon_padding";
-    private static final String KEY_POSITION_MARGIN = "position_margin";
+    private static final String KEY_POSITION_MARGIN_X = "position_margin_x";
+    private static final String KEY_POSITION_MARGIN_Y = "position_margin_y";
     
     private static final int DEFAULT_ICON_SIZE = 24; // en dp
     private static final String DEFAULT_POSITION = "bottom_right";
@@ -25,7 +26,8 @@ public class FloatingButtonConfig {
     private static final int DEFAULT_ICON_ALPHA = 255; // 100% (255/255)
     private static final int DEFAULT_ICON_GAP = 8; // en dp
     private static final int DEFAULT_ICON_PADDING = 0; // en dp
-    private static final int DEFAULT_POSITION_MARGIN = 16; // en dp
+    private static final int DEFAULT_POSITION_MARGIN_X = 16; // en dp
+    private static final int DEFAULT_POSITION_MARGIN_Y = 16; // en dp
     
     public static void saveIconSize(Context context, int size) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -117,14 +119,37 @@ public class FloatingButtonConfig {
         return prefs.getInt(KEY_ICON_PADDING, DEFAULT_ICON_PADDING);
     }
     
-    public static void savePositionMargin(Context context, int marginDp) {
+    public static void savePositionMarginX(Context context, int marginDp) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        prefs.edit().putInt(KEY_POSITION_MARGIN, marginDp).apply();
+        prefs.edit().putInt(KEY_POSITION_MARGIN_X, marginDp).apply();
     }
     
-    public static int getPositionMargin(Context context) {
+    public static int getPositionMarginX(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        return prefs.getInt(KEY_POSITION_MARGIN, DEFAULT_POSITION_MARGIN);
+        return prefs.getInt(KEY_POSITION_MARGIN_X, DEFAULT_POSITION_MARGIN_X);
+    }
+    
+    public static void savePositionMarginY(Context context, int marginDp) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putInt(KEY_POSITION_MARGIN_Y, marginDp).apply();
+    }
+    
+    public static int getPositionMarginY(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getInt(KEY_POSITION_MARGIN_Y, DEFAULT_POSITION_MARGIN_Y);
+    }
+    
+    // Método de compatibilidad: si existe el valor antiguo, migrarlo a X e Y
+    public static void migrateOldPositionMargin(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (prefs.contains("position_margin") && !prefs.contains(KEY_POSITION_MARGIN_X)) {
+            int oldMargin = prefs.getInt("position_margin", DEFAULT_POSITION_MARGIN_X);
+            prefs.edit()
+                .putInt(KEY_POSITION_MARGIN_X, oldMargin)
+                .putInt(KEY_POSITION_MARGIN_Y, oldMargin)
+                .remove("position_margin")
+                .apply();
+        }
     }
 }
 

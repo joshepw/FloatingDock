@@ -125,16 +125,16 @@
                     android:id="@+id/border_radius_container"
                     layout="@layout/number_input_with_controls" />
 
-                <!-- Gap entre iconos -->
+                <!-- Margen de posición X -->
                 <TextView
-                    android:id="@+id/icon_gap_label"
+                    android:id="@+id/position_margin_x_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Separación entre iconos (dp):"
+                    android:text="Margen horizontal (dp):"
                     android:layout_marginTop="8dp" />
 
                 <include
-                    android:id="@+id/icon_gap_container"
+                    android:id="@+id/position_margin_x_container"
                     layout="@layout/number_input_with_controls" />
 
             </LinearLayout>
@@ -187,16 +187,28 @@
                     android:id="@+id/icon_padding_container"
                     layout="@layout/number_input_with_controls" />
 
-                <!-- Margen de posición -->
+                <!-- Gap entre iconos -->
                 <TextView
-                    android:id="@+id/position_margin_label"
+                    android:id="@+id/icon_gap_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Margen desde bordes (dp):"
+                    android:text="Separación entre iconos (dp):"
                     android:layout_marginTop="8dp" />
 
                 <include
-                    android:id="@+id/position_margin_container"
+                    android:id="@+id/icon_gap_container"
+                    layout="@layout/number_input_with_controls" />
+
+                <!-- Margen de posición Y -->
+                <TextView
+                    android:id="@+id/position_margin_y_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Margen vertical (dp):"
+                    android:layout_marginTop="8dp" />
+
+                <include
+                    android:id="@+id/position_margin_y_container"
                     layout="@layout/number_input_with_controls" />
 
             </LinearLayout>

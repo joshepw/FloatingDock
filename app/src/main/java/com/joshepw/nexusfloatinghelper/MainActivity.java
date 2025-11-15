@@ -30,6 +30,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -46,7 +47,8 @@ public class MainActivity extends AppCompatActivity {
     private EditText iconAlphaInput;
     private EditText iconGapInput;
     private EditText iconPaddingInput;
-    private EditText positionMarginInput;
+    private EditText positionMarginXInput;
+    private EditText positionMarginYInput;
     private Button saveButton;
     private Button startServiceButton;
     private Button addAppButton;
@@ -114,8 +116,11 @@ public class MainActivity extends AppCompatActivity {
         View iconPaddingContainer = findViewById(R.id.icon_padding_container);
         iconPaddingInput = iconPaddingContainer.findViewById(R.id.number_input);
         
-        View positionMarginContainer = findViewById(R.id.position_margin_container);
-        positionMarginInput = positionMarginContainer.findViewById(R.id.number_input);
+        View positionMarginXContainer = findViewById(R.id.position_margin_x_container);
+        positionMarginXInput = positionMarginXContainer.findViewById(R.id.number_input);
+        
+        View positionMarginYContainer = findViewById(R.id.position_margin_y_container);
+        positionMarginYInput = positionMarginYContainer.findViewById(R.id.number_input);
         
         saveButton = findViewById(R.id.save_button);
         startServiceButton = findViewById(R.id.start_service_button);
@@ -144,8 +149,11 @@ public class MainActivity extends AppCompatActivity {
         // Padding de iconos: 0-50
         setupNumberControl(R.id.icon_padding_container, 0, 50);
         
-        // Margen de posición: 0-200
-        setupNumberControl(R.id.position_margin_container, 0, 200);
+        // Margen de posición X: 0-200
+        setupNumberControl(R.id.position_margin_x_container, 0, 200);
+        
+        // Margen de posición Y: 0-200
+        setupNumberControl(R.id.position_margin_y_container, 0, 200);
     }
     
     private void setupNumberControl(int containerId, int min, int max) {
@@ -220,24 +228,40 @@ public class MainActivity extends AppCompatActivity {
             public void onDeleteClick(int position) {
                 DockAppManager.removeDockApp(MainActivity.this, position);
                 refreshDockAppsList();
+                // Reiniciar servicio para aplicar cambios
+                scheduleServiceRestart();
             }
             
             @Override
             public void onEditClick(int position) {
                 try {
-                    // Abrir actividad para editar icono
+                    // Abrir actividad para editar (primero activity, luego icono)
                     List<DockApp> dockApps = DockAppManager.getDockApps(MainActivity.this);
                     if (position >= 0 && position < dockApps.size()) {
                         DockApp dockApp = dockApps.get(position);
                         if (dockApp != null) {
-                            Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
-                            intent.putExtra("package_name", dockApp.getPackageName());
-                            intent.putExtra("current_icon", dockApp.getMaterialIconName());
-                            if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
-                                intent.putExtra("activity_name", dockApp.getActivityName());
+                            String packageName = dockApp.getPackageName();
+                            
+                            // Verificar si la app tiene múltiples activities
+                            if (ActivityUtils.hasMultipleActivities(MainActivity.this, packageName)) {
+                                // Abrir SelectActivityActivity para seleccionar activity
+                                Intent intent = new Intent(MainActivity.this, SelectActivityActivity.class);
+                                intent.putExtra("package_name", packageName);
+                                intent.putExtra("current_icon", dockApp.getMaterialIconName());
+                                intent.putExtra("index", position);
+                                intent.putExtra("is_editing", true); // Indicar que estamos editando
+                                startActivity(intent);
+                            } else {
+                                // Si solo tiene una activity, ir directamente a seleccionar icono
+                                Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
+                                intent.putExtra("package_name", packageName);
+                                intent.putExtra("current_icon", dockApp.getMaterialIconName());
+                                if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
+                                    intent.putExtra("activity_name", dockApp.getActivityName());
+                                }
+                                intent.putExtra("index", position);
+                                startActivity(intent);
                             }
-                            intent.putExtra("index", position);
-                            startActivity(intent);
                         } else {
                             Toast.makeText(MainActivity.this, "Error: App no encontrada", Toast.LENGTH_SHORT).show();
                         }
@@ -256,9 +280,44 @@ public class MainActivity extends AppCompatActivity {
         refreshDockAppsList();
     }
     
+    private List<DockApp> previousDockApps = null;
+    
     private void refreshDockAppsList() {
         List<DockApp> dockApps = DockAppManager.getDockApps(this);
         dockAppAdapter.updateList(dockApps);
+        
+        // Detectar si hubo cambios en las apps del dock
+        if (previousDockApps != null && !isInitializing) {
+            if (!dockAppsEqual(previousDockApps, dockApps)) {
+                // Hubo cambios, reiniciar servicio
+                scheduleServiceRestart();
+            }
+        }
+        previousDockApps = new ArrayList<>(dockApps); // Guardar copia para comparar
+    }
+    
+    private boolean dockAppsEqual(List<DockApp> list1, List<DockApp> list2) {
+        if (list1 == null && list2 == null) return true;
+        if (list1 == null || list2 == null) return false;
+        if (list1.size() != list2.size()) return false;
+        
+        for (int i = 0; i < list1.size(); i++) {
+            DockApp app1 = list1.get(i);
+            DockApp app2 = list2.get(i);
+            if (app1 == null && app2 == null) continue;
+            if (app1 == null || app2 == null) return false;
+            
+            // Comparar package name, icon name y activity name
+            if (!app1.getPackageName().equals(app2.getPackageName())) return false;
+            if (!app1.getMaterialIconName().equals(app2.getMaterialIconName())) return false;
+            
+            String activity1 = app1.getActivityName();
+            String activity2 = app2.getActivityName();
+            if (activity1 == null) activity1 = "";
+            if (activity2 == null) activity2 = "";
+            if (!activity1.equals(activity2)) return false;
+        }
+        return true;
     }
     
     private void setupListeners() {
@@ -428,14 +487,30 @@ public class MainActivity extends AppCompatActivity {
             }
         }));
         
-        // Listener para margen de posición
-        positionMarginInput.addTextChangedListener(createTextWatcher(() -> {
-            String value = positionMarginInput.getText().toString();
+        // Listener para margen de posición X
+        positionMarginXInput.addTextChangedListener(createTextWatcher(() -> {
+            String value = positionMarginXInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
                 try {
-                    int positionMargin = Integer.parseInt(value);
-                    if (positionMargin >= 0 && positionMargin <= 200) {
-                        FloatingButtonConfig.savePositionMargin(this, positionMargin);
+                    int positionMarginX = Integer.parseInt(value);
+                    if (positionMarginX >= 0 && positionMarginX <= 200) {
+                        FloatingButtonConfig.savePositionMarginX(this, positionMarginX);
+                        scheduleServiceRestart();
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignorar valores inválidos mientras se escribe
+                }
+            }
+        }));
+        
+        // Listener para margen de posición Y
+        positionMarginYInput.addTextChangedListener(createTextWatcher(() -> {
+            String value = positionMarginYInput.getText().toString();
+            if (!TextUtils.isEmpty(value)) {
+                try {
+                    int positionMarginY = Integer.parseInt(value);
+                    if (positionMarginY >= 0 && positionMarginY <= 200) {
+                        FloatingButtonConfig.savePositionMarginY(this, positionMarginY);
                         scheduleServiceRestart();
                     }
                 } catch (NumberFormatException e) {
@@ -579,9 +654,16 @@ public class MainActivity extends AppCompatActivity {
         iconPaddingInput.setText(String.valueOf(iconPadding));
         
         // Cargar margen de posición
-        int positionMargin = FloatingButtonConfig.getPositionMargin(this);
-        positionMarginInput.setHint("16");
-        positionMarginInput.setText(String.valueOf(positionMargin));
+        // Migrar valor antiguo si existe
+        FloatingButtonConfig.migrateOldPositionMargin(this);
+        
+        int positionMarginX = FloatingButtonConfig.getPositionMarginX(this);
+        positionMarginXInput.setHint("16");
+        positionMarginXInput.setText(String.valueOf(positionMarginX));
+        
+        int positionMarginY = FloatingButtonConfig.getPositionMarginY(this);
+        positionMarginYInput.setHint("16");
+        positionMarginYInput.setText(String.valueOf(positionMarginY));
     }
     
     private void saveSettings() {
@@ -693,14 +775,26 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             
-            // Validar y guardar margen de posición
-            String positionMarginStr = positionMarginInput.getText().toString();
-            if (!TextUtils.isEmpty(positionMarginStr)) {
-                int positionMargin = Integer.parseInt(positionMarginStr);
-                if (positionMargin >= 0 && positionMargin <= 200) {
-                    FloatingButtonConfig.savePositionMargin(this, positionMargin);
+            // Validar y guardar margen de posición X
+            String positionMarginXStr = positionMarginXInput.getText().toString();
+            if (!TextUtils.isEmpty(positionMarginXStr)) {
+                int positionMarginX = Integer.parseInt(positionMarginXStr);
+                if (positionMarginX >= 0 && positionMarginX <= 200) {
+                    FloatingButtonConfig.savePositionMarginX(this, positionMarginX);
                 } else {
-                    Toast.makeText(this, "Margen debe estar entre 0 y 200", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Margen X debe estar entre 0 y 200", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+            
+            // Validar y guardar margen de posición Y
+            String positionMarginYStr = positionMarginYInput.getText().toString();
+            if (!TextUtils.isEmpty(positionMarginYStr)) {
+                int positionMarginY = Integer.parseInt(positionMarginYStr);
+                if (positionMarginY >= 0 && positionMarginY <= 200) {
+                    FloatingButtonConfig.savePositionMarginY(this, positionMarginY);
+                } else {
+                    Toast.makeText(this, "Margen Y debe estar entre 0 y 200", Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -733,13 +827,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Refrescar lista y detectar cambios (que reiniciará el servicio si es necesario)
         refreshDockAppsList();
     }
     
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        // Refrescar lista cuando se vuelve de editar
+        // Refrescar lista cuando se vuelve de agregar/editar
+        // refreshDockAppsList() detectará cambios y reiniciará el servicio si es necesario
         refreshDockAppsList();
     }
 }

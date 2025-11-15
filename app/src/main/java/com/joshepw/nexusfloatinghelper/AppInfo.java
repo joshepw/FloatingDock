@@ -8,17 +8,23 @@ public class AppInfo {
     private Drawable icon;
     private boolean isSystemApp;
     private boolean isLaunchable;
+    private boolean hasMultipleActivities;
     
     public AppInfo(String packageName, String appName, Drawable icon, boolean isSystemApp) {
-        this(packageName, appName, icon, isSystemApp, true);
+        this(packageName, appName, icon, isSystemApp, true, false);
     }
     
     public AppInfo(String packageName, String appName, Drawable icon, boolean isSystemApp, boolean isLaunchable) {
+        this(packageName, appName, icon, isSystemApp, isLaunchable, false);
+    }
+    
+    public AppInfo(String packageName, String appName, Drawable icon, boolean isSystemApp, boolean isLaunchable, boolean hasMultipleActivities) {
         this.packageName = packageName;
         this.appName = appName;
         this.icon = icon;
         this.isSystemApp = isSystemApp;
         this.isLaunchable = isLaunchable;
+        this.hasMultipleActivities = hasMultipleActivities;
     }
     
     public String getPackageName() {
@@ -39,6 +45,10 @@ public class AppInfo {
     
     public boolean isLaunchable() {
         return isLaunchable;
+    }
+    
+    public boolean hasMultipleActivities() {
+        return hasMultipleActivities;
     }
 }
 

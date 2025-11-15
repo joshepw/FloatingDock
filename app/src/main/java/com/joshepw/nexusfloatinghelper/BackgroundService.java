@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.IBinder;
@@ -17,12 +18,15 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.util.List;
 
@@ -35,6 +39,10 @@ public class BackgroundService extends Service {
     private View floatingButtonView;
     private WindowManager.LayoutParams params;
     private LinearLayout iconContainer;
+    private ViewTreeObserver.OnGlobalLayoutListener keyboardListener;
+    private View keyboardDetectionView;
+    private WindowManager.LayoutParams keyboardDetectionParams;
+    private boolean isKeyboardVisible = false;
     
     @Override
     public void onCreate() {
@@ -129,9 +137,186 @@ public class BackgroundService extends Service {
             // Verificar que los iconos estén creados correctamente
             updateDockIcons();
             
+            // Configurar detección de teclado
+            setupKeyboardDetection();
+            
             Log.d(TAG, "Botón flotante mostrado");
         } catch (Exception e) {
             Log.e(TAG, "Error al mostrar botón flotante", e);
+        }
+    }
+    
+    private void setupKeyboardDetection() {
+        try {
+            // Para Android 11+ (API 30+), usar WindowInsets (método más moderno y eficiente)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                setupKeyboardDetectionWithWindowInsets();
+            } else {
+                // Para versiones anteriores, usar ViewTreeObserver con getWindowVisibleDisplayFrame
+                setupKeyboardDetectionWithViewTreeObserver();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al configurar detección de teclado", e);
+        }
+    }
+    
+    private void setupKeyboardDetectionWithWindowInsets() {
+        try {
+            // Usar la vista flotante principal como root para detectar insets
+            if (floatingButtonView == null) {
+                Log.w(TAG, "floatingButtonView es null, no se puede configurar detección con WindowInsets");
+                // Fallback al método anterior
+                setupKeyboardDetectionWithViewTreeObserver();
+                return;
+            }
+            
+            // Configurar listener de WindowInsets en la vista raíz del dock
+            View rootView = floatingButtonView.getRootView();
+            if (rootView != null) {
+                ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+                    try {
+                        boolean keyboardNowVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
+                        
+                        if (keyboardNowVisible != isKeyboardVisible) {
+                            isKeyboardVisible = keyboardNowVisible;
+                            
+                            if (isKeyboardVisible) {
+                                // Teclado visible: ocultar dock
+                                if (floatingButtonView != null && floatingButtonView.getVisibility() == View.VISIBLE) {
+                                    floatingButtonView.setVisibility(View.GONE);
+                                    Log.d(TAG, "Teclado detectado (WindowInsets): Dock ocultado");
+                                }
+                            } else {
+                                // Teclado oculto: mostrar dock (solo si hay apps)
+                                if (floatingButtonView != null) {
+                                    List<DockApp> dockApps = DockAppManager.getDockApps(BackgroundService.this);
+                                    if (dockApps != null && !dockApps.isEmpty()) {
+                                        floatingButtonView.setVisibility(View.VISIBLE);
+                                        Log.d(TAG, "Teclado oculto (WindowInsets): Dock mostrado");
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error en detección de teclado con WindowInsets", e);
+                    }
+                    return insets;
+                });
+                
+                Log.d(TAG, "Detección de teclado configurada con WindowInsets (API 30+)");
+            } else {
+                Log.w(TAG, "rootView es null, usando fallback");
+                setupKeyboardDetectionWithViewTreeObserver();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al configurar detección con WindowInsets", e);
+            // Fallback al método anterior
+            setupKeyboardDetectionWithViewTreeObserver();
+        }
+    }
+    
+    private void setupKeyboardDetectionWithViewTreeObserver() {
+        try {
+            // Crear una vista invisible que cubra toda la pantalla para detectar cambios
+            keyboardDetectionView = new View(this);
+            keyboardDetectionView.setBackgroundColor(0x00000000); // Completamente transparente
+            
+            // Obtener dimensiones de la pantalla
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
+            int screenWidth = displayMetrics.widthPixels;
+            int screenHeight = displayMetrics.heightPixels;
+            
+            // Configurar parámetros para la vista de detección
+            keyboardDetectionParams = new WindowManager.LayoutParams(
+                screenWidth,
+                screenHeight,
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O 
+                    ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    : WindowManager.LayoutParams.TYPE_PHONE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                    | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+            );
+            keyboardDetectionParams.gravity = Gravity.TOP | Gravity.START;
+            keyboardDetectionParams.x = 0;
+            keyboardDetectionParams.y = 0;
+            
+            // Agregar la vista de detección al WindowManager
+            windowManager.addView(keyboardDetectionView, keyboardDetectionParams);
+            
+            // Crear listener para detectar cambios en el layout usando getWindowVisibleDisplayFrame
+            keyboardListener = new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    try {
+                        if (keyboardDetectionView == null) return;
+                        
+                        Rect r = new Rect();
+                        // Obtener el área visible de la ventana
+                        keyboardDetectionView.getWindowVisibleDisplayFrame(r);
+                        
+                        // Obtener altura total de la pantalla
+                        int screenHeight = keyboardDetectionView.getRootView().getHeight();
+                        
+                        // Calcular altura del teclado virtual
+                        // Cuando el teclado aparece, r.bottom se reduce
+                        int softKeyboardHeight = screenHeight - r.bottom;
+                        
+                        // Umbral: si la altura del teclado es mayor a 100px, consideramos que está visible
+                        // Este es el método recomendado por Android
+                        boolean keyboardNowVisible = softKeyboardHeight > 100;
+                        
+                        if (keyboardNowVisible != isKeyboardVisible) {
+                            isKeyboardVisible = keyboardNowVisible;
+                            
+                            if (isKeyboardVisible) {
+                                // Teclado visible: ocultar dock
+                                if (floatingButtonView != null && floatingButtonView.getVisibility() == View.VISIBLE) {
+                                    floatingButtonView.setVisibility(View.GONE);
+                                    Log.d(TAG, "Teclado detectado (getWindowVisibleDisplayFrame): Dock ocultado (altura: " + softKeyboardHeight + "px)");
+                                }
+                            } else {
+                                // Teclado oculto: mostrar dock (solo si hay apps)
+                                if (floatingButtonView != null) {
+                                    List<DockApp> dockApps = DockAppManager.getDockApps(BackgroundService.this);
+                                    if (dockApps != null && !dockApps.isEmpty()) {
+                                        floatingButtonView.setVisibility(View.VISIBLE);
+                                        Log.d(TAG, "Teclado oculto (getWindowVisibleDisplayFrame): Dock mostrado");
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error en detección de teclado", e);
+                    }
+                }
+            };
+            
+            // Agregar listener a la vista de detección
+            keyboardDetectionView.getViewTreeObserver().addOnGlobalLayoutListener(keyboardListener);
+            
+            Log.d(TAG, "Detección de teclado configurada con ViewTreeObserver (getWindowVisibleDisplayFrame)");
+        } catch (Exception e) {
+            Log.e(TAG, "Error al configurar detección de teclado con ViewTreeObserver", e);
+        }
+    }
+    
+    private void removeKeyboardDetection() {
+        try {
+            if (keyboardDetectionView != null) {
+                if (keyboardListener != null) {
+                    keyboardDetectionView.getViewTreeObserver().removeOnGlobalLayoutListener(keyboardListener);
+                }
+                windowManager.removeView(keyboardDetectionView);
+                keyboardDetectionView = null;
+                keyboardListener = null;
+                Log.d(TAG, "Detección de teclado removida");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al remover detección de teclado", e);
         }
     }
     
@@ -313,10 +498,15 @@ public class BackgroundService extends Service {
     private void applyInitialPosition() {
         if (params == null) return;
         
+        // Migrar valor antiguo si existe
+        FloatingButtonConfig.migrateOldPositionMargin(this);
+        
         String position = FloatingButtonConfig.getPosition(this);
-        int marginDp = FloatingButtonConfig.getPositionMargin(this);
+        int marginXDp = FloatingButtonConfig.getPositionMarginX(this);
+        int marginYDp = FloatingButtonConfig.getPositionMarginY(this);
         float density = getResources().getDisplayMetrics().density;
-        int marginPx = (int) (marginDp * density);
+        int marginXPx = (int) (marginXDp * density);
+        int marginYPx = (int) (marginYDp * density);
         
         DisplayMetrics displayMetrics = new DisplayMetrics();
         windowManager.getDefaultDisplay().getMetrics(displayMetrics);
@@ -333,22 +523,22 @@ public class BackgroundService extends Service {
         switch (position) {
             case "top_left":
                 params.gravity = Gravity.TOP | Gravity.START;
-                params.x = marginPx; // Margen desde borde izquierdo
-                params.y = marginPx; // Margen desde borde superior
+                params.x = marginXPx; // Margen horizontal desde borde izquierdo
+                params.y = marginYPx; // Margen vertical desde borde superior
                 break;
             case "top_center":
                 params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
                 params.x = 0; // Centrado horizontalmente
-                params.y = marginPx; // Margen desde borde superior
+                params.y = marginYPx; // Margen vertical desde borde superior
                 break;
             case "top_right":
                 params.gravity = Gravity.TOP | Gravity.END;
-                params.x = marginPx; // Margen desde borde derecho (positivo = desde la derecha)
-                params.y = marginPx; // Margen desde borde superior
+                params.x = marginXPx; // Margen horizontal desde borde derecho (positivo = desde la derecha)
+                params.y = marginYPx; // Margen vertical desde borde superior
                 break;
             case "center_left":
                 params.gravity = Gravity.CENTER_VERTICAL | Gravity.START;
-                params.x = marginPx; // Margen desde borde izquierdo
+                params.x = marginXPx; // Margen horizontal desde borde izquierdo
                 params.y = 0; // Centrado verticalmente
                 break;
             case "center_center":
@@ -358,28 +548,28 @@ public class BackgroundService extends Service {
                 break;
             case "center_right":
                 params.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
-                params.x = marginPx; // Margen desde borde derecho
+                params.x = marginXPx; // Margen horizontal desde borde derecho
                 params.y = 0; // Centrado verticalmente
                 break;
             case "bottom_left":
                 params.gravity = Gravity.BOTTOM | Gravity.START;
-                params.x = marginPx; // Margen desde borde izquierdo
-                params.y = marginPx; // Margen desde borde inferior (positivo = desde abajo)
+                params.x = marginXPx; // Margen horizontal desde borde izquierdo
+                params.y = marginYPx; // Margen vertical desde borde inferior (positivo = desde abajo)
                 break;
             case "bottom_center":
                 params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
                 params.x = 0; // Centrado horizontalmente
-                params.y = marginPx; // Margen desde borde inferior
+                params.y = marginYPx; // Margen vertical desde borde inferior
                 break;
             case "bottom_right":
             default:
                 params.gravity = Gravity.BOTTOM | Gravity.END;
-                params.x = marginPx; // Margen desde borde derecho
-                params.y = marginPx; // Margen desde borde inferior
+                params.x = marginXPx; // Margen horizontal desde borde derecho
+                params.y = marginYPx; // Margen vertical desde borde inferior
                 break;
         }
         
-        Log.d(TAG, "Posición aplicada: " + position + ", margen: " + marginPx + "px (" + marginDp + "dp), x=" + params.x + ", y=" + params.y);
+        Log.d(TAG, "Posición aplicada: " + position + ", margen X: " + marginXPx + "px (" + marginXDp + "dp), margen Y: " + marginYPx + "px (" + marginYDp + "dp), x=" + params.x + ", y=" + params.y);
     }
     
     private void updateDockIcons() {
@@ -408,6 +598,9 @@ public class BackgroundService extends Service {
     }
     
     private void removeFloatingButton() {
+        // Remover detección de teclado
+        removeKeyboardDetection();
+        
         if (floatingButtonView != null && windowManager != null) {
             try {
                 windowManager.removeView(floatingButtonView);
