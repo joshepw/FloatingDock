@@ -35,7 +35,7 @@ public class SelectActivityActivity extends AppCompatActivity {
             packageName = getIntent().getStringExtra("package_name");
             if (packageName == null || packageName.isEmpty()) {
                 android.util.Log.e("SelectActivityActivity", "Package name no proporcionado");
-                Toast.makeText(this, "Error: Package name no proporcionado", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_package_not_provided), Toast.LENGTH_SHORT).show();
                 finish();
                 return;
             }
@@ -117,7 +117,7 @@ public class SelectActivityActivity extends AppCompatActivity {
                         finish();
                     } catch (Exception e) {
                         android.util.Log.e("SelectActivityActivity", "Error al seleccionar activity", e);
-                        Toast.makeText(SelectActivityActivity.this, "Error al seleccionar activity", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(SelectActivityActivity.this, getString(R.string.error_selecting_activity), Toast.LENGTH_SHORT).show();
                     }
                 }
             });
@@ -144,7 +144,7 @@ public class SelectActivityActivity extends AppCompatActivity {
             
         } catch (Exception e) {
             android.util.Log.e("SelectActivityActivity", "Error en onCreate", e);
-            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_generic, e.getMessage()), Toast.LENGTH_SHORT).show();
             finish();
         }
     }

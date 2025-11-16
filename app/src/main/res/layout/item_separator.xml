@@ -14,7 +14,7 @@
         android:id="@+id/separator_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Apps no lanzables"
+        android:text="@string/non_launchable_apps"
         android:textSize="14sp"
         android:textStyle="bold"
         android:textColor="#666666"

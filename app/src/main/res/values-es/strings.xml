@@ -56,6 +56,7 @@
     <string name="select_activity_title">Selecciona una Activity</string>
     <string name="search_activity_hint">Buscar activity…</string>
     <string name="non_launchable_activities">Activities no lanzables</string>
+    <string name="non_launchable_apps">Apps no lanzables</string>
     
     <!-- Select Action Activity -->
     <string name="select_action_title">Selecciona una Acción del Sistema</string>
@@ -64,6 +65,10 @@
     <!-- Add Action Item -->
     <string name="add_system_action">Agregar acción del sistema</string>
     <string name="add_system_action_desc">Home, Back, Volumen, Play, etc.</string>
+    
+    <!-- Manual Entry Item -->
+    <string name="manual_entry_title_text">Ingresar package name manualmente</string>
+    <string name="manual_entry_desc_text">Si la app no aparece en la lista</string>
     
     <!-- System Actions -->
     <string name="action_home">Home</string>
@@ -114,6 +119,34 @@
     <string name="service_started">Servicio iniciado</string>
     <string name="service_start_error">Error al iniciar servicio: %1$s</string>
     <string name="overlay_permission_required">Necesitas el permiso de overlay primero</string>
+    <string name="permission_granted">Permiso concedido</string>
+    <string name="permission_denied">Permiso denegado</string>
+    <string name="error_app_not_found">Error: App/Acción no encontrada</string>
+    <string name="error_invalid_position">Error: Posición inválida</string>
+    <string name="error_editing">Error al editar: %1$s</string>
+    <string name="error_generic">Error: %1$s</string>
+    <string name="error_loading_icons">Error al cargar iconos: %1$s</string>
+    <string name="error_saving">Error al guardar: %1$s</string>
+    <string name="error_opening_icon_selection">Error al abrir selección de icono</string>
+    <string name="error_loading_apps">Error al cargar la lista de apps: %1$s</string>
+    <string name="error_showing_dialog">Error al mostrar diálogo: %1$s</string>
+    <string name="error_selecting_action">Error al seleccionar acción</string>
+    <string name="error_loading_actions">Error al cargar acciones: %1$s</string>
+    <string name="error_package_not_provided">Error: Package name no proporcionado</string>
+    <string name="error_selecting_activity">Error al seleccionar activity</string>
+    <string name="config_saved">Configuración guardada</string>
+    <string name="action_prefix">Acción: %1$s</string>
+    
+    <!-- Validation Messages -->
+    <string name="error_icon_size_range">Tamaño de icono debe estar entre 1 y 200</string>
+    <string name="error_border_radius_range">Border radius debe estar entre 0 y 100</string>
+    <string name="error_background_color_invalid">Color de fondo inválido (use hex)</string>
+    <string name="error_alpha_range">Alpha debe estar entre 0 y 255</string>
+    <string name="error_icon_color_invalid">Color de iconos inválido (use hex)</string>
+    <string name="error_gap_range">Gap debe estar entre 0 y 50</string>
+    <string name="error_padding_range">Padding debe estar entre 0 y 50</string>
+    <string name="error_margin_x_range">Margen X debe estar entre -200 y 200</string>
+    <string name="error_margin_y_range">Margen Y debe estar entre -200 y 200</string>
     
     <!-- Select Icon Activity -->
     <string name="select_icon_title">Selecciona un Icono</string>

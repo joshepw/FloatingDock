@@ -116,7 +116,7 @@ public class SelectIconActivity extends AppCompatActivity {
                     finish();
                 } catch (Exception e) {
                     android.util.Log.e("SelectIconActivity", "Error al guardar app/acción", e);
-                    android.widget.Toast.makeText(this, "Error al guardar: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(this, getString(R.string.error_saving, e.getMessage()), android.widget.Toast.LENGTH_SHORT).show();
                 }
             }, finalPackageName != null ? finalPackageName : "");
             
@@ -156,7 +156,7 @@ public class SelectIconActivity extends AppCompatActivity {
             });
         } catch (Exception e) {
             android.util.Log.e("SelectIconActivity", "Error en onCreate", e);
-            android.widget.Toast.makeText(this, "Error al cargar iconos: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+            android.widget.Toast.makeText(this, getString(R.string.error_loading_icons, e.getMessage()), android.widget.Toast.LENGTH_LONG).show();
             finish();
         }
     }

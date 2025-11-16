@@ -37,7 +37,7 @@ public class SelectActionActivity extends AppCompatActivity {
                     finish();
                 } catch (Exception e) {
                     android.util.Log.e("SelectActionActivity", "Error al abrir SelectIconActivity", e);
-                    android.widget.Toast.makeText(this, "Error al seleccionar acción", android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(this, getString(R.string.error_selecting_action), android.widget.Toast.LENGTH_SHORT).show();
                 }
             });
             
@@ -63,7 +63,7 @@ public class SelectActionActivity extends AppCompatActivity {
             });
         } catch (Exception e) {
             android.util.Log.e("SelectActionActivity", "Error en onCreate", e);
-            android.widget.Toast.makeText(this, "Error al cargar acciones: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+            android.widget.Toast.makeText(this, getString(R.string.error_loading_actions, e.getMessage()), android.widget.Toast.LENGTH_LONG).show();
             finish();
         }
     }

@@ -221,11 +221,11 @@ public class MainActivity extends AppCompatActivity {
             result -> {
                 if (result.getResultCode() == Activity.RESULT_OK) {
                     if (Settings.canDrawOverlays(this)) {
-                        Toast.makeText(this, "Permiso concedido", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.permission_granted), Toast.LENGTH_SHORT).show();
                         // Iniciar servicio automáticamente cuando se concede el permiso
                         startBackgroundService();
                     } else {
-                        Toast.makeText(this, "Permiso denegado", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.permission_denied), Toast.LENGTH_SHORT).show();
                     }
                 }
             }
@@ -309,14 +309,14 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                         } else {
-                            Toast.makeText(MainActivity.this, "Error: App/Acción no encontrada", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, getString(R.string.error_app_not_found), Toast.LENGTH_SHORT).show();
                         }
                     } else {
-                        Toast.makeText(MainActivity.this, "Error: Posición inválida", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, getString(R.string.error_invalid_position), Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
                     android.util.Log.e("MainActivity", "Error al editar app/acción", e);
-                    Toast.makeText(MainActivity.this, "Error al editar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, getString(R.string.error_editing, e.getMessage()), Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -368,7 +368,7 @@ public class MainActivity extends AppCompatActivity {
             builder.show();
         } catch (Exception e) {
             android.util.Log.e("MainActivity", "Error al mostrar diálogo de inicio automático", e);
-            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_generic, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -895,7 +895,7 @@ public class MainActivity extends AppCompatActivity {
                 if (iconSize > 0 && iconSize <= 200) {
                     FloatingButtonConfig.saveIconSize(this, iconSize);
                 } else {
-                    Toast.makeText(this, "Tamaño de icono debe estar entre 1 y 200", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_icon_size_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -918,7 +918,7 @@ public class MainActivity extends AppCompatActivity {
                 if (borderRadius >= 0 && borderRadius <= 100) {
                     FloatingButtonConfig.saveBorderRadius(this, borderRadius);
                 } else {
-                    Toast.makeText(this, "Border radius debe estar entre 0 y 100", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_border_radius_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -930,7 +930,7 @@ public class MainActivity extends AppCompatActivity {
                     int bgColor = Integer.parseInt(bgColorStr, 16);
                     FloatingButtonConfig.saveBackgroundColor(this, bgColor);
                 } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Color de fondo inválido (use hex)", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_background_color_invalid), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -942,7 +942,7 @@ public class MainActivity extends AppCompatActivity {
                 if (bgAlpha >= 0 && bgAlpha <= 255) {
                     FloatingButtonConfig.saveBackgroundAlpha(this, bgAlpha);
                 } else {
-                    Toast.makeText(this, "Alpha debe estar entre 0 y 255", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_alpha_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -954,7 +954,7 @@ public class MainActivity extends AppCompatActivity {
                     int iconColor = Integer.parseInt(iconColorStr, 16);
                     FloatingButtonConfig.saveIconColor(this, iconColor);
                 } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Color de iconos inválido (use hex)", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_icon_color_invalid), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -966,7 +966,7 @@ public class MainActivity extends AppCompatActivity {
                 if (iconAlpha >= 0 && iconAlpha <= 255) {
                     FloatingButtonConfig.saveIconAlpha(this, iconAlpha);
                 } else {
-                    Toast.makeText(this, "Alpha debe estar entre 0 y 255", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_alpha_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -978,7 +978,7 @@ public class MainActivity extends AppCompatActivity {
                 if (iconGap >= 0 && iconGap <= 50) {
                     FloatingButtonConfig.saveIconGap(this, iconGap);
                 } else {
-                    Toast.makeText(this, "Gap debe estar entre 0 y 50", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_gap_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -990,7 +990,7 @@ public class MainActivity extends AppCompatActivity {
                 if (iconPadding >= 0 && iconPadding <= 50) {
                     FloatingButtonConfig.saveIconPadding(this, iconPadding);
                 } else {
-                    Toast.makeText(this, "Padding debe estar entre 0 y 50", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_padding_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -1002,7 +1002,7 @@ public class MainActivity extends AppCompatActivity {
                 if (positionMarginX >= -200 && positionMarginX <= 200) {
                     FloatingButtonConfig.savePositionMarginX(this, positionMarginX);
                 } else {
-                    Toast.makeText(this, "Margen X debe estar entre -200 y 200", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_margin_x_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -1014,12 +1014,12 @@ public class MainActivity extends AppCompatActivity {
                 if (positionMarginY >= -200 && positionMarginY <= 200) {
                     FloatingButtonConfig.savePositionMarginY(this, positionMarginY);
                 } else {
-                    Toast.makeText(this, "Margen Y debe estar entre -200 y 200", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_margin_y_range), Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
             
-            Toast.makeText(this, "Configuración guardada", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.config_saved), Toast.LENGTH_SHORT).show();
             
             // Reiniciar servicio para aplicar cambios
             if (Settings.canDrawOverlays(this)) {
@@ -1040,7 +1040,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error al guardar configuración", e);
-            Toast.makeText(this, "Error al guardar: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_saving, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
     

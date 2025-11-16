@@ -56,7 +56,7 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
             if (action != null) {
                 displayText = action.getActionName();
             } else {
-                displayText = "Acción: " + dockApp.getActionId();
+                displayText = context.getString(R.string.action_prefix, dockApp.getActionId());
             }
         } else {
             // Es una app normal

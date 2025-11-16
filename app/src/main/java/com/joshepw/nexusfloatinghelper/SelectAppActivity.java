@@ -58,7 +58,7 @@ public class SelectAppActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) {
                         android.util.Log.e("SelectAppActivity", "Error al abrir SelectIconActivity", e);
-                        Toast.makeText(SelectAppActivity.this, "Error al abrir selección de icono", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(SelectAppActivity.this, getString(R.string.error_opening_icon_selection), Toast.LENGTH_SHORT).show();
                     }
                 }
                 
@@ -96,7 +96,7 @@ public class SelectAppActivity extends AppCompatActivity {
             });
         } catch (Exception e) {
             android.util.Log.e("SelectAppActivity", "Error en onCreate", e);
-            Toast.makeText(this, "Error al cargar la lista de apps: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.error_loading_apps, e.getMessage()), Toast.LENGTH_LONG).show();
             finish();
         }
     }
@@ -183,14 +183,14 @@ public class SelectAppActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) {
                         android.util.Log.e("SelectAppActivity", "Error en diálogo manual", e);
-                        Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, getString(R.string.error_generic, e.getMessage()), Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton(getString(R.string.button_cancel), null)
                 .show();
         } catch (Exception e) {
             android.util.Log.e("SelectAppActivity", "Error al mostrar diálogo manual", e);
-            Toast.makeText(this, "Error al mostrar diálogo: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.error_showing_dialog, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
     
