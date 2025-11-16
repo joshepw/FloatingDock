@@ -5,21 +5,34 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+
+import static android.content.Context.RECEIVER_NOT_EXPORTED;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
@@ -35,21 +48,113 @@ public class BackgroundService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String CHANNEL_ID = "BackgroundServiceChannel";
     
+    // Constantes configurables para el comportamiento de ocultación
+    private static final int HIDDEN_DOCK_EXPOSED_SIZE_DP = 36; // Tamaño expuesto cuando está oculto (en dp)
+    private static final int HIDDEN_DOCK_BORDER_RADIUS_DP = 18; // Border radius cuando está oculto (en dp)
+    private static final int DRAG_INDICATOR_SIZE_DP = 6; // Tamaño del indicador de drag (ancho para vertical, alto para horizontal, en dp)
+    private static final int DRAG_INDICATOR_SIZE_REDUCTION_DP = 36; // Tamaño que se resta del dock para calcular las dimensiones del indicador (en dp)
+    private static final int DRAG_INDICATOR_COLOR = 0xFFFFFFFF; // Color blanco
+    private static final int DRAG_INDICATOR_ALPHA = 180; // Alpha del indicador (0-255)
+    
     private WindowManager windowManager;
     private View floatingButtonView;
     private WindowManager.LayoutParams params;
     private LinearLayout iconContainer;
+    private FrameLayout dockContainer; // Contenedor principal que envuelve iconContainer e indicador
+    private View dragIndicator; // Indicador visual cuando el dock está oculto
+    private String hideDirection = ""; // Dirección de ocultación: "left", "right", "top", "bottom"
     private ViewTreeObserver.OnGlobalLayoutListener keyboardListener;
     private View keyboardDetectionView;
     private WindowManager.LayoutParams keyboardDetectionParams;
     private boolean isKeyboardVisible = false;
     
+    // Variables para drag
+    private boolean isDragging = false;
+    private boolean wasDraggableEnabled = false; // Guardar estado anterior del toggle
+    private float initialTouchX;
+    private float initialTouchY;
+    private int initialX;
+    private int initialY;
+    private Handler longPressHandler;
+    private Runnable longPressRunnable;
+    private static final long LONG_PRESS_TIMEOUT = 500; // 500ms para long press
+    
+    // Variables para ocultar/mostrar dock
+    private boolean isDockHidden = false;
+    private Handler hideTimeoutHandler;
+    private Runnable hideTimeoutRunnable;
+    private int originalX;
+    private int originalY;
+    private int hiddenX;
+    private int hiddenY;
+    
+    // BroadcastReceiver para actualizaciones en tiempo real
+    private BroadcastReceiver configUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (action == null) return;
+            
+            if (floatingButtonView == null || iconContainer == null) return;
+            
+            // Si el dock está oculto y se va a actualizar la configuración, mostrarlo primero
+            // (excepto para HIDE_DOCK_ACTION que es para ocultar)
+            if (isDockHidden && !"HIDE_DOCK_ACTION".equals(action)) {
+                // Mostrar el dock inmediatamente (sin animación) antes de aplicar cambios
+                showDockImmediately();
+            }
+            
+            switch (action) {
+                case "UPDATE_DOCK_CONFIG":
+                    // Actualizar todas las propiedades del dock
+                    updateDockConfiguration();
+                    break;
+                case "UPDATE_ICON_SIZE":
+                    updateIconSizes();
+                    break;
+                case "UPDATE_POSITION":
+                    updateDockPosition();
+                    break;
+                case "UPDATE_BACKGROUND":
+                    updateDockBackgroundAnimated();
+                    break;
+                case "UPDATE_ICONS":
+                    updateDockIcons();
+                    break;
+                case "HIDE_DOCK_ACTION":
+                    // Ocultar el dock
+                    hideDock();
+                    break;
+            }
+        }
+    };
+    
     @Override
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "Servicio creado");
+        
+        // Inicializar MaterialSymbolsMapper para cargar el JSON de iconos
+        MaterialSymbolsMapper.initialize(this);
+        
         createNotificationChannel();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        
+        // Registrar BroadcastReceiver para actualizaciones
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("UPDATE_DOCK_CONFIG");
+        filter.addAction("UPDATE_ICON_SIZE");
+        filter.addAction("UPDATE_POSITION");
+        filter.addAction("UPDATE_BACKGROUND");
+        filter.addAction("UPDATE_ICONS");
+        filter.addAction("HIDE_DOCK_ACTION");
+        
+        // Especificar que el receiver no es exportado (solo para uso interno de la app)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(configUpdateReceiver, filter, RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(configUpdateReceiver, filter);
+        }
     }
     
     @Override
@@ -81,6 +186,9 @@ public class BackgroundService extends Service {
             Log.w(TAG, "No se tiene permiso para dibujar sobre otras apps");
         }
         
+        // Lanzar app de inicio automático solo la primera vez (al arrancar el OS)
+        launchAutoStartApp();
+        
         // Retornar START_STICKY para que el servicio se reinicie si es terminado
         return START_STICKY;
     }
@@ -92,6 +200,9 @@ public class BackgroundService extends Service {
         }
         
         try {
+            // Crear contenedor principal (FrameLayout) que envuelve todo
+            dockContainer = new FrameLayout(this);
+            
             // Crear contenedor de iconos programáticamente
             iconContainer = new LinearLayout(this);
             iconContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -103,6 +214,12 @@ public class BackgroundService extends Service {
             // Crear todos los iconos del dock
             createDockIcons();
             
+            // Agregar iconContainer al dockContainer
+            dockContainer.addView(iconContainer);
+            
+            // Crear indicador de drag (inicialmente oculto)
+            createDragIndicator();
+            
             // Configurar parámetros de WindowManager
             params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -111,14 +228,21 @@ public class BackgroundService extends Service {
                     ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                     : WindowManager.LayoutParams.TYPE_PHONE,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                    | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, // Permite posiciones fuera de la pantalla
                 PixelFormat.TRANSLUCENT
             );
             
-            floatingButtonView = iconContainer;
+            floatingButtonView = dockContainer;
+            
+            // Inicializar estado de draggable
+            wasDraggableEnabled = FloatingButtonConfig.isDockDraggable(this);
             
             // Aplicar posición inicial desde configuraciones
             applyInitialPosition();
+            
+            // Configurar drag si está habilitado
+            setupDraggable();
             
             // Agregar la vista al WindowManager
             windowManager.addView(floatingButtonView, params);
@@ -136,6 +260,9 @@ public class BackgroundService extends Service {
             
             // Verificar que los iconos estén creados correctamente
             updateDockIcons();
+            
+            // Configurar comportamiento del dock (ocultar/mostrar)
+            setupDockBehavior();
             
             // Configurar detección de teclado
             setupKeyboardDetection();
@@ -320,6 +447,860 @@ public class BackgroundService extends Service {
         }
     }
     
+    private void setupDockBehavior() {
+        if (floatingButtonView == null || iconContainer == null) return;
+        
+        String behavior = FloatingButtonConfig.getDockBehavior(this);
+        
+        if ("fixed".equals(behavior)) {
+            // Modo fijo: siempre visible
+            if (isDockHidden) {
+                showDock();
+            }
+            cancelHideTimeout();
+        } else if ("hide_on_action".equals(behavior)) {
+            // Modo ocultar con acción: por ahora solo mostramos, la acción se implementará después
+            if (isDockHidden) {
+                showDock();
+            }
+            cancelHideTimeout();
+        } else if ("hide_after_time".equals(behavior)) {
+            // Modo ocultar después de tiempo: iniciar timer si está visible
+            if (isDockHidden) {
+                showDock();
+            } else {
+                startHideTimeout();
+            }
+        }
+        
+        // Configurar click en la parte expuesta cuando está oculto
+        setupHiddenDockClickListener();
+    }
+    
+    private void startHideTimeout() {
+        cancelHideTimeout();
+        
+        if (hideTimeoutHandler == null) {
+            hideTimeoutHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        int timeoutMs = FloatingButtonConfig.getDockHideTimeout(this);
+        hideTimeoutRunnable = () -> {
+            if (!isDockHidden && "hide_after_time".equals(FloatingButtonConfig.getDockBehavior(this))) {
+                hideDock();
+            }
+        };
+        hideTimeoutHandler.postDelayed(hideTimeoutRunnable, timeoutMs);
+    }
+    
+    private void cancelHideTimeout() {
+        if (hideTimeoutHandler != null && hideTimeoutRunnable != null) {
+            hideTimeoutHandler.removeCallbacks(hideTimeoutRunnable);
+            hideTimeoutRunnable = null;
+        }
+    }
+    
+    private void resetHideTimeout() {
+        // Reiniciar timer cuando se hace click en un icono
+        String behavior = FloatingButtonConfig.getDockBehavior(this);
+        if ("hide_after_time".equals(behavior) && !isDockHidden) {
+            startHideTimeout();
+        }
+    }
+    
+    private void hideDock() {
+        if (isDockHidden || floatingButtonView == null || params == null || iconContainer == null) return;
+        
+        try {
+            isDockHidden = true;
+            
+            // Guardar posición original
+            originalX = params.x;
+            originalY = params.y;
+            
+            // Calcular posición oculta (hacia el borde más cercano)
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
+            int screenWidth = displayMetrics.widthPixels;
+            int screenHeight = displayMetrics.heightPixels;
+            
+            float density = getResources().getDisplayMetrics().density;
+            int exposedSizePx = (int) (HIDDEN_DOCK_EXPOSED_SIZE_DP * density);
+            
+            // Obtener dimensiones del dock
+            // Medir el contenedor completo (dockContainer) que incluye el iconContainer
+            if (dockContainer != null) {
+                dockContainer.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                );
+            }
+            
+            floatingButtonView.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            );
+            
+            int dockWidth = floatingButtonView.getMeasuredWidth();
+            int dockHeight = floatingButtonView.getMeasuredHeight();
+            
+            // Si las dimensiones son 0, intentar obtenerlas del layout
+            if (dockWidth == 0 || dockHeight == 0) {
+                dockWidth = floatingButtonView.getWidth();
+                dockHeight = floatingButtonView.getHeight();
+            }
+            
+            // Si aún son 0, usar dimensiones del iconContainer como fallback
+            if ((dockWidth == 0 || dockHeight == 0) && iconContainer != null) {
+                iconContainer.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                );
+                dockWidth = iconContainer.getMeasuredWidth();
+                dockHeight = iconContainer.getMeasuredHeight();
+            }
+            
+            Log.d(TAG, "hideDock - Dimensiones calculadas: dockWidth=" + dockWidth + ", dockHeight=" + dockHeight);
+            
+            // Determinar hacia qué dirección ocultar
+            boolean isDraggable = FloatingButtonConfig.isDockDraggable(this);
+            
+            if (isDraggable) {
+                // Si el dock es draggable, ocultar hacia el lado de la pantalla más cercano
+                // Calcular distancias a cada borde
+                int dockCenterX = originalX + (dockWidth / 2);
+                int dockCenterY = originalY + (dockHeight / 2);
+                
+                int distanceToLeft = dockCenterX;
+                int distanceToRight = screenWidth - dockCenterX;
+                int distanceToTop = dockCenterY;
+                int distanceToBottom = screenHeight - dockCenterY;
+                
+                // Encontrar la distancia mínima
+                int minDistance = Math.min(Math.min(distanceToLeft, distanceToRight), 
+                                          Math.min(distanceToTop, distanceToBottom));
+                
+                // Determinar hacia qué dirección ocultar basado en la distancia mínima
+                if (minDistance == distanceToLeft) {
+                    // Más cerca del borde izquierdo → ocultar hacia la izquierda
+                    hiddenX = -(dockWidth - exposedSizePx);
+                    hiddenY = originalY;
+                } else if (minDistance == distanceToRight) {
+                    // Más cerca del borde derecho → ocultar hacia la derecha
+                    // Queremos que solo se vean exposedSizePx desde el borde derecho de la pantalla
+                    // El borde derecho del dock debe estar en: screenWidth + exposedSizePx
+                    // El borde izquierdo del dock (hiddenX) debe estar en: screenWidth + exposedSizePx - dockWidth
+                    hiddenX = screenWidth + exposedSizePx - dockWidth;
+                    hiddenY = originalY;
+                    Log.d(TAG, "hideDock - Ocultando hacia derecha: screenWidth=" + screenWidth + ", exposedSizePx=" + exposedSizePx + ", dockWidth=" + dockWidth + ", hiddenX=" + hiddenX + ", bordeDerecho=" + (hiddenX + dockWidth) + ", visible=" + (screenWidth - hiddenX));
+                } else if (minDistance == distanceToTop) {
+                    // Más cerca del borde superior → ocultar hacia arriba
+                    hiddenY = -(dockHeight - exposedSizePx);
+                    hiddenX = originalX;
+                } else {
+                    // Más cerca del borde inferior → ocultar hacia abajo
+                    hiddenY = screenHeight + exposedSizePx - dockHeight;
+                    hiddenX = originalX;
+                }
+            } else {
+                // Si no es draggable, usar la posición inicial configurada
+                String position = FloatingButtonConfig.getPosition(this);
+                
+                // Determinar dirección de ocultación según la posición configurada
+                if (position.contains("right")) {
+                    // Posiciones con "right": top_right, center_right, bottom_right
+                    // Ocultar hacia la derecha
+                    hiddenX = screenWidth - exposedSizePx;
+                    hiddenY = originalY;
+                    Log.d(TAG, "hideDock - Ocultando hacia derecha (config): screenWidth=" + screenWidth + ", exposedSizePx=" + exposedSizePx + ", dockWidth=" + dockWidth + ", hiddenX=" + hiddenX + ", bordeDerecho=" + (hiddenX + dockWidth) + ", visible=" + (screenWidth - hiddenX));
+                } else if (position.contains("left")) {
+                    // Posiciones con "left": top_left, center_left, bottom_left
+                    // Ocultar hacia la izquierda
+                    hiddenX = -(dockWidth - exposedSizePx);
+                    hiddenY = originalY;
+                } else if (position.contains("center")) {
+                    // Posiciones con "center": top_center, bottom_center
+                    // Ocultar según la dirección vertical
+                    if (position.contains("top")) {
+                        // top_center → ocultar hacia arriba
+                        hiddenY = -(dockHeight - exposedSizePx);
+                        hiddenX = originalX;
+                    } else if (position.contains("bottom")) {
+                        // bottom_center → ocultar hacia abajo
+                        hiddenY = screenHeight + exposedSizePx - dockHeight;
+                        hiddenX = originalX;
+                    } else {
+                        // Fallback para center (no debería ocurrir, pero por seguridad)
+                        hiddenX = screenWidth + exposedSizePx - dockWidth;
+                        hiddenY = originalY;
+                    }
+                } else {
+                    // Fallback: ocultar hacia la derecha por defecto
+                    hiddenX = screenWidth + exposedSizePx - dockWidth;
+                    hiddenY = originalY;
+                }
+            }
+            
+            // Determinar dirección de ocultación para posicionar el indicador
+            if (hiddenX < originalX) {
+                hideDirection = "left";
+            } else if (hiddenX > originalX) {
+                hideDirection = "right";
+            } else if (hiddenY < originalY) {
+                hideDirection = "top";
+            } else {
+                hideDirection = "bottom";
+            }
+            
+            // Mostrar en consola las coordenadas donde se ocultará el dock
+            Log.d(TAG, "Ocultando dock - Posición original: X=" + originalX + ", Y=" + originalY);
+            Log.d(TAG, "Ocultando dock - Coordenadas ocultas: hiddenX=" + hiddenX + ", hiddenY=" + hiddenY);
+            Log.d(TAG, "Ocultando dock - Dimensiones: dockWidth=" + dockWidth + ", dockHeight=" + dockHeight + ", exposedSizePx=" + exposedSizePx);
+            Log.d(TAG, "Ocultando dock - Pantalla: screenWidth=" + screenWidth + ", screenHeight=" + screenHeight);
+            Log.d(TAG, "Ocultando dock - Dirección: " + hideDirection);
+            
+            // Ocultar iconos (transparencia total)
+            hideIcons();
+            
+            // Mostrar indicador de drag
+            showDragIndicator();
+            
+            // Habilitar click en la parte expuesta
+            enableHiddenDockClick();
+            
+            // Animar border radius cuando se oculta
+            int targetRadiusPx = (int) (HIDDEN_DOCK_BORDER_RADIUS_DP * density);
+            animateBorderRadius(targetRadiusPx, () -> {
+                // Después de animar border radius, animar posición
+                animateHidePosition();
+            });
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error al ocultar dock", e);
+            isDockHidden = false;
+        }
+    }
+    
+    private void showDock() {
+        if (!isDockHidden || floatingButtonView == null || params == null || iconContainer == null) return;
+        
+        try {
+            isDockHidden = false;
+            cancelHideTimeout();
+            
+            // Deshabilitar click en parte expuesta
+            disableHiddenDockClick();
+            
+            // Ocultar indicador de drag
+            hideDragIndicator();
+            
+            // Animar posición de vuelta
+            animateShowPosition(() -> {
+                // Después de animar posición, restaurar border radius y mostrar iconos
+                int targetRadius = FloatingButtonConfig.getBorderRadius(this);
+                float density = getResources().getDisplayMetrics().density;
+                int targetRadiusPx = (int) (targetRadius * density);
+                animateBorderRadius(targetRadiusPx, () -> {
+                    showIcons();
+                    // Reiniciar timer si está configurado
+                    startHideTimeout();
+                });
+            });
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error al mostrar dock", e);
+            isDockHidden = false;
+        }
+    }
+    
+    private void showDockImmediately() {
+        // Versión sin animación para cuando se necesita mostrar el dock antes de aplicar cambios
+        if (!isDockHidden || floatingButtonView == null || params == null || iconContainer == null) return;
+        
+        try {
+            isDockHidden = false;
+            cancelHideTimeout();
+            
+            // Deshabilitar click en parte expuesta
+            disableHiddenDockClick();
+            
+            // Ocultar indicador de drag
+            if (dragIndicator != null) {
+                dragIndicator.setVisibility(View.GONE);
+                dragIndicator.setAlpha(0f);
+            }
+            
+            // Restaurar posición inmediatamente (sin animación)
+            params.x = originalX;
+            params.y = originalY;
+            
+            try {
+                windowManager.updateViewLayout(floatingButtonView, params);
+            } catch (Exception e) {
+                Log.e(TAG, "Error al actualizar posición durante showDockImmediately", e);
+            }
+            
+            // Restaurar border radius inmediatamente
+            int targetRadius = FloatingButtonConfig.getBorderRadius(this);
+            float density = getResources().getDisplayMetrics().density;
+            int targetRadiusPx = (int) (targetRadius * density);
+            
+            android.graphics.drawable.Drawable currentBackground = iconContainer.getBackground();
+            if (currentBackground instanceof GradientDrawable) {
+                GradientDrawable background = (GradientDrawable) currentBackground;
+                background.setCornerRadius(targetRadiusPx);
+                iconContainer.invalidate();
+            }
+            
+            // Mostrar iconos inmediatamente
+            showIconsImmediately();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error al mostrar dock inmediatamente", e);
+            isDockHidden = false;
+        }
+    }
+    
+    private void showIconsImmediately() {
+        if (iconContainer == null) return;
+        
+        for (int i = 0; i < iconContainer.getChildCount(); i++) {
+            View child = iconContainer.getChildAt(i);
+            if (child instanceof ImageView) {
+                child.setAlpha(1f);
+            }
+        }
+    }
+    
+    private void animateHidePosition() {
+        if (params == null || floatingButtonView == null) return;
+        
+        ValueAnimator animator = ValueAnimator.ofInt(0, 1);
+        animator.setDuration(300);
+        animator.setInterpolator(new DecelerateInterpolator());
+        
+        final int startX = params.x;
+        final int startY = params.y;
+        final int deltaX = hiddenX - startX;
+        final int deltaY = hiddenY - startY;
+        
+        animator.addUpdateListener(animation -> {
+            float progress = animation.getAnimatedFraction();
+            params.x = startX + (int) (deltaX * progress);
+            params.y = startY + (int) (deltaY * progress);
+            
+            try {
+                windowManager.updateViewLayout(floatingButtonView, params);
+            } catch (Exception e) {
+                Log.e(TAG, "Error al actualizar posición durante animación", e);
+            }
+        });
+        
+        animator.start();
+    }
+    
+    private void animateShowPosition(Runnable onComplete) {
+        if (params == null || floatingButtonView == null) return;
+        
+        ValueAnimator animator = ValueAnimator.ofInt(0, 1);
+        animator.setDuration(300);
+        animator.setInterpolator(new DecelerateInterpolator());
+        
+        final int startX = params.x;
+        final int startY = params.y;
+        final int deltaX = originalX - startX;
+        final int deltaY = originalY - startY;
+        
+        animator.addUpdateListener(animation -> {
+            float progress = animation.getAnimatedFraction();
+            params.x = startX + (int) (deltaX * progress);
+            params.y = startY + (int) (deltaY * progress);
+            
+            try {
+                windowManager.updateViewLayout(floatingButtonView, params);
+            } catch (Exception e) {
+                Log.e(TAG, "Error al actualizar posición durante animación", e);
+            }
+        });
+        
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+            }
+        });
+        
+        animator.start();
+    }
+    
+    private void animateBorderRadius(int targetRadiusPx, Runnable onComplete) {
+        if (iconContainer == null) return;
+        
+        android.graphics.drawable.Drawable currentBackground = iconContainer.getBackground();
+        if (!(currentBackground instanceof GradientDrawable)) return;
+        
+        GradientDrawable background = (GradientDrawable) currentBackground;
+        float currentRadius = background.getCornerRadius();
+        
+        ValueAnimator animator = ValueAnimator.ofFloat(currentRadius, targetRadiusPx);
+        animator.setDuration(300);
+        animator.setInterpolator(new DecelerateInterpolator());
+        
+        animator.addUpdateListener(animation -> {
+            float radius = (Float) animation.getAnimatedValue();
+            background.setCornerRadius(radius);
+            iconContainer.invalidate();
+        });
+        
+        if (onComplete != null) {
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    onComplete.run();
+                }
+            });
+        }
+        
+        animator.start();
+    }
+    
+    private void hideIcons() {
+        if (iconContainer == null) return;
+        
+        for (int i = 0; i < iconContainer.getChildCount(); i++) {
+            View child = iconContainer.getChildAt(i);
+            if (child instanceof ImageView) {
+                child.animate()
+                    .alpha(0f)
+                    .setDuration(200)
+                    .start();
+            }
+        }
+    }
+    
+    private void showIcons() {
+        if (iconContainer == null) return;
+        
+        for (int i = 0; i < iconContainer.getChildCount(); i++) {
+            View child = iconContainer.getChildAt(i);
+            if (child instanceof ImageView) {
+                child.setAlpha(0f);
+                child.animate()
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start();
+            }
+        }
+    }
+    
+    private void setupHiddenDockClickListener() {
+        if (floatingButtonView == null) return;
+        
+        // El click listener solo debe funcionar cuando está oculto
+        // Se configurará dinámicamente en hideDock() y showDock()
+    }
+    
+    private void enableHiddenDockClick() {
+        if (floatingButtonView == null) return;
+        
+        floatingButtonView.setOnClickListener(v -> {
+            if (isDockHidden) {
+                showDock();
+            }
+        });
+    }
+    
+    private void disableHiddenDockClick() {
+        if (floatingButtonView == null) return;
+        
+        // No remover el listener si el dock es draggable, ya que setupDraggable() lo maneja
+        if (!FloatingButtonConfig.isDockDraggable(this)) {
+            floatingButtonView.setOnClickListener(null);
+        }
+    }
+    
+    private void updateDraggableState() {
+        // Actualizar estado de draggable cuando cambia la configuración
+        if (floatingButtonView == null || params == null) {
+            wasDraggableEnabled = FloatingButtonConfig.isDockDraggable(this);
+            setupDraggable();
+            return;
+        }
+        
+        boolean isNowDraggable = FloatingButtonConfig.isDockDraggable(this);
+        
+        // Si se deshabilitó el draggable, resetear posición a la configuración inicial
+        if (wasDraggableEnabled && !isNowDraggable) {
+            resetPositionToInitialSettings();
+        }
+        
+        // Guardar el nuevo estado
+        wasDraggableEnabled = isNowDraggable;
+        
+        // El borde naranja solo aparece durante el drag, no cuando solo está habilitado
+        // Por lo tanto, no mostramos el borde aquí, solo configuramos el drag
+        setupDraggable();
+    }
+    
+    private void resetPositionToInitialSettings() {
+        if (params == null || iconContainer == null) return;
+        
+        try {
+            // Obtener configuración de posición y márgenes
+            String position = FloatingButtonConfig.getPosition(this);
+            int marginXDp = FloatingButtonConfig.getPositionMarginX(this);
+            int marginYDp = FloatingButtonConfig.getPositionMarginY(this);
+            float density = getResources().getDisplayMetrics().density;
+            int marginXPx = (int) (marginXDp * density);
+            int marginYPx = (int) (marginYDp * density);
+            
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
+            int screenWidth = displayMetrics.widthPixels;
+            int screenHeight = displayMetrics.heightPixels;
+            
+            // Obtener el ancho y alto del dock
+            int dockWidth = 0;
+            int dockHeight = 0;
+            if (floatingButtonView != null) {
+                floatingButtonView.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                );
+                dockWidth = floatingButtonView.getMeasuredWidth();
+                dockHeight = floatingButtonView.getMeasuredHeight();
+            }
+            
+            // Calcular posición absoluta basada en la posición predefinida
+            int absoluteX = 0;
+            int absoluteY = 0;
+            
+            switch (position) {
+                case "top_left":
+                    absoluteX = marginXPx;
+                    absoluteY = marginYPx;
+                    break;
+                case "top_center":
+                    absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0);
+                    absoluteY = marginYPx;
+                    break;
+                case "top_right":
+                    absoluteX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0);
+                    absoluteY = marginYPx;
+                    break;
+                case "center_left":
+                    absoluteX = marginXPx;
+                    absoluteY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0);
+                    break;
+                case "center_right":
+                    absoluteX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0);
+                    absoluteY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0);
+                    break;
+                case "bottom_left":
+                    absoluteX = marginXPx;
+                    absoluteY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0);
+                    break;
+                case "bottom_center":
+                    absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0);
+                    absoluteY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0);
+                    break;
+                case "bottom_right":
+                default:
+                    absoluteX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0);
+                    absoluteY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0);
+                    break;
+            }
+            
+            // Cambiar a modo no-draggable (usar sistema de posiciones predefinidas)
+            // Resetear valores
+            params.x = 0;
+            params.y = 0;
+            
+            // Aplicar posición y margen según la configuración (sistema predefinido)
+            switch (position) {
+                case "top_left":
+                    params.gravity = Gravity.TOP | Gravity.START;
+                    params.x = marginXPx;
+                    params.y = marginYPx;
+                    break;
+                case "top_center":
+                    params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                    params.x = 0;
+                    params.y = marginYPx;
+                    break;
+                case "top_right":
+                    params.gravity = Gravity.TOP | Gravity.END;
+                    params.x = marginXPx;
+                    params.y = marginYPx;
+                    break;
+                case "center_left":
+                    params.gravity = Gravity.CENTER_VERTICAL | Gravity.START;
+                    params.x = marginXPx;
+                    params.y = 0;
+                    break;
+                case "center_right":
+                    params.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
+                    params.x = marginXPx;
+                    params.y = 0;
+                    break;
+                case "bottom_left":
+                    params.gravity = Gravity.BOTTOM | Gravity.START;
+                    params.x = marginXPx;
+                    params.y = marginYPx;
+                    break;
+                case "bottom_center":
+                    params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+                    params.x = 0;
+                    params.y = marginYPx;
+                    break;
+                case "bottom_right":
+                default:
+                    params.gravity = Gravity.BOTTOM | Gravity.END;
+                    params.x = marginXPx;
+                    params.y = marginYPx;
+                    break;
+            }
+            
+            // Actualizar la vista
+            try {
+                windowManager.updateViewLayout(floatingButtonView, params);
+            } catch (Exception e) {
+                Log.e(TAG, "Error al actualizar posición al deshabilitar draggable", e);
+            }
+            
+            // Los márgenes ya están en la configuración, no necesitamos resetearlos
+            Log.d(TAG, "Posición reseteada a configuración inicial: " + position + ", margen X: " + marginXPx + "px (" + marginXDp + "dp), margen Y: " + marginYPx + "px (" + marginYDp + "dp)");
+        } catch (Exception e) {
+            Log.e(TAG, "Error al resetear posición a configuración inicial", e);
+        }
+    }
+    
+    private void setupDraggable() {
+        if (floatingButtonView == null) return;
+        
+        boolean isDraggable = FloatingButtonConfig.isDockDraggable(this);
+        if (!isDraggable) {
+            floatingButtonView.setOnTouchListener(null);
+            // Asegurar que el borde naranja esté oculto
+            updateDockBorder(false);
+            return;
+        }
+        
+        if (longPressHandler == null) {
+            longPressHandler = new Handler(android.os.Looper.getMainLooper());
+        }
+        
+        floatingButtonView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, android.view.MotionEvent event) {
+                if (!FloatingButtonConfig.isDockDraggable(BackgroundService.this)) {
+                    return false;
+                }
+                
+                switch (event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        // Guardar posición inicial del touch
+                        initialTouchX = event.getRawX();
+                        initialTouchY = event.getRawY();
+                        
+                        // Guardar posición actual del dock antes de empezar a arrastrar
+                        if (params != null) {
+                            initialX = params.x;
+                            initialY = params.y;
+                        }
+                        
+                        // Iniciar timer para long press
+                        longPressRunnable = () -> {
+                            if (!isDragging) {
+                                isDragging = true;
+                                updateDockBorder(true); // Mostrar borde naranja
+                                Log.d(TAG, "Long press detectado, iniciando drag");
+                            }
+                        };
+                        longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
+                        return true;
+                        
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        if (isDragging || shouldStartDragging(event)) {
+                            if (!isDragging) {
+                                isDragging = true;
+                                updateDockBorder(true); // Mostrar borde naranja
+                                longPressHandler.removeCallbacks(longPressRunnable);
+                            }
+                            
+                            // Calcular nueva posición
+                            float deltaX = event.getRawX() - initialTouchX;
+                            float deltaY = event.getRawY() - initialTouchY;
+                            
+                            if (params != null) {
+                                params.x = initialX + (int) deltaX;
+                                params.y = initialY + (int) deltaY;
+                                
+                                try {
+                                    windowManager.updateViewLayout(floatingButtonView, params);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error al actualizar posición durante drag", e);
+                                }
+                            }
+                            return true;
+                        }
+                        return false;
+                        
+                    case android.view.MotionEvent.ACTION_UP:
+                    case android.view.MotionEvent.ACTION_CANCEL:
+                        longPressHandler.removeCallbacks(longPressRunnable);
+                        
+                        if (isDragging) {
+                            // Guardar nueva posición
+                            saveCurrentPosition();
+                            isDragging = false;
+                            updateDockBorder(false); // Ocultar borde naranja
+                            Log.d(TAG, "Drag finalizado, posición guardada");
+                        }
+                        return isDragging;
+                }
+                return false;
+            }
+            
+            private boolean shouldStartDragging(android.view.MotionEvent event) {
+                // Si el usuario se ha movido significativamente, iniciar drag
+                float deltaX = Math.abs(event.getRawX() - initialTouchX);
+                float deltaY = Math.abs(event.getRawY() - initialTouchY);
+                float threshold = 20; // 20 píxeles de umbral
+                return deltaX > threshold || deltaY > threshold;
+            }
+        });
+    }
+    
+    private void setupIconDragListener(ImageView iconView, String packageName, String activityName, String actionId, boolean isAction) {
+        if (longPressHandler == null) {
+            longPressHandler = new Handler(Looper.getMainLooper());
+        }
+        
+        final long ICON_LONG_PRESS_TIMEOUT = 1000; // 1 segundo para iconos
+        final Runnable[] iconLongPressRunnable = {null};
+        final boolean[] longPressActivated = {false}; // Indica si ya pasó el segundo
+        final float[] iconInitialTouchX = {0};
+        final float[] iconInitialTouchY = {0};
+        final boolean[] isCurrentlyDragging = {false};
+        final boolean[] touchStarted = {false};
+        
+        iconView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, android.view.MotionEvent event) {
+                if (!FloatingButtonConfig.isDockDraggable(BackgroundService.this)) {
+                    return false;
+                }
+                
+                switch (event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        touchStarted[0] = true;
+                        iconInitialTouchX[0] = event.getRawX();
+                        iconInitialTouchY[0] = event.getRawY();
+                        longPressActivated[0] = false;
+                        isCurrentlyDragging[0] = false;
+                        
+                        // Guardar posición actual del dock antes de empezar a arrastrar
+                        if (params != null) {
+                            initialX = params.x;
+                            initialY = params.y;
+                        }
+                        
+                        // Iniciar timer para long press (1 segundo para iconos)
+                        iconLongPressRunnable[0] = () -> {
+                            // Solo activar drag si aún se está presionando
+                            if (touchStarted[0] && !longPressActivated[0]) {
+                                longPressActivated[0] = true;
+                                isDragging = true;
+                                updateDockBorder(true); // Mostrar borde naranja
+                                Log.d(TAG, "Long press en icono detectado (1 segundo), drag habilitado");
+                            }
+                        };
+                        longPressHandler.postDelayed(iconLongPressRunnable[0], ICON_LONG_PRESS_TIMEOUT);
+                        return true; // Interceptar para controlar el comportamiento
+                        
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        // Solo permitir drag si ya pasó el segundo (long press activado)
+                        if (longPressActivated[0]) {
+                            isCurrentlyDragging[0] = true;
+                            
+                            // Calcular nueva posición
+                            float moveDeltaX = event.getRawX() - iconInitialTouchX[0];
+                            float moveDeltaY = event.getRawY() - iconInitialTouchY[0];
+                            
+                            if (params != null) {
+                                params.x = initialX + (int) moveDeltaX;
+                                params.y = initialY + (int) moveDeltaY;
+                                
+                                try {
+                                    windowManager.updateViewLayout(floatingButtonView, params);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error al actualizar posición durante drag desde icono", e);
+                                }
+                            }
+                            return true; // Consumir el evento cuando se está haciendo drag
+                        }
+                        // Si no pasó el segundo, no hacer nada pero seguir interceptando
+                        return true;
+                        
+                    case android.view.MotionEvent.ACTION_UP:
+                    case android.view.MotionEvent.ACTION_CANCEL:
+                        touchStarted[0] = false;
+                        // Cancelar el timer si aún no se completó
+                        longPressHandler.removeCallbacks(iconLongPressRunnable[0]);
+                        
+                        if (isCurrentlyDragging[0]) {
+                            // Hubo drag (se mantuvo presionado más de 1 segundo y se movió)
+                            saveCurrentPosition();
+                            Log.d(TAG, "Drag desde icono finalizado, posición guardada");
+                            isDragging = false;
+                            updateDockBorder(false); // Ocultar borde naranja
+                            longPressActivated[0] = false;
+                            isCurrentlyDragging[0] = false;
+                            return true; // Consumir el evento para evitar click
+                        } else {
+                            // No pasó el segundo o no hubo movimiento, ejecutar click normal
+                            isDragging = false;
+                            longPressActivated[0] = false;
+                            
+                            // Ejecutar click con un pequeño delay para asegurar que el evento termine
+                            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                handleIconClick(isAction, actionId, packageName, activityName);
+                            }, 50);
+                            return true; // Consumir el evento
+                        }
+                }
+                return true;
+            }
+        });
+    }
+    
+    private void saveCurrentPosition() {
+        if (params == null) return;
+        
+        try {
+            // Convertir posición actual a una posición relativa y guardar los offsets
+            // Como ahora es draggable, guardamos los offsets X e Y directamente
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
+            float density = getResources().getDisplayMetrics().density;
+            
+            // Convertir píxeles a dp
+            int marginXDp = (int) (params.x / density);
+            int marginYDp = (int) (params.y / density);
+            
+            // Guardar los márgenes actualizados
+            FloatingButtonConfig.savePositionMarginX(this, marginXDp);
+            FloatingButtonConfig.savePositionMarginY(this, marginYDp);
+            
+            Log.d(TAG, "Posición guardada: X=" + marginXDp + "dp, Y=" + marginYDp + "dp");
+        } catch (Exception e) {
+            Log.e(TAG, "Error al guardar posición actual", e);
+        }
+    }
+    
     private void applyDockBackground() {
         if (iconContainer == null) return;
         
@@ -344,10 +1325,41 @@ public class BackgroundService extends Service {
             background.setCornerRadius(radiusPx);
             background.setColor(finalColor);
             
+            // El borde naranja solo se agrega cuando se está haciendo drag, no por defecto
+            // Se agregará dinámicamente mediante updateDockBorder() cuando inicie el drag
+            
             // Aplicar fondo
             iconContainer.setBackground(background);
         } catch (Exception e) {
             Log.e(TAG, "Error al aplicar fondo del dock", e);
+        }
+    }
+    
+    private void updateDockBorder(boolean showBorder) {
+        if (iconContainer == null) return;
+        
+        try {
+            android.graphics.drawable.Drawable currentBackground = iconContainer.getBackground();
+            if (currentBackground instanceof GradientDrawable) {
+                GradientDrawable background = (GradientDrawable) currentBackground;
+                
+                if (showBorder) {
+                    // Agregar o actualizar borde naranja de 3dp
+                    float density = getResources().getDisplayMetrics().density;
+                    int borderWidthDp = 3;
+                    int borderWidthPx = (int) (borderWidthDp * density);
+                    int orangeColor = 0xFFFF9800; // Naranja en ARGB
+                    background.setStroke(borderWidthPx, orangeColor);
+                } else {
+                    // Remover borde
+                    background.setStroke(0, 0);
+                }
+                
+                // Forzar redibujado
+                iconContainer.invalidate();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al actualizar borde del dock", e);
         }
     }
     
@@ -423,31 +1435,91 @@ public class BackgroundService extends Service {
                 iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
             }
             
-            // Configurar click listener
+            // Configurar click y drag listener
             final String packageName = dockApp.getPackageName();
             final String activityName = dockApp.getActivityName();
             final String actionId = dockApp.getActionId();
             final boolean isAction = dockApp.isAction();
             
-            iconView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isAction && actionId != null) {
-                        // Ejecutar acción del sistema
-                        ActionExecutor.executeAction(BackgroundService.this, actionId);
-                    } else {
-                        // Abrir app normal
-                        openApp(packageName, activityName);
+            // Configurar listener según si el dock es draggable
+            if (FloatingButtonConfig.isDockDraggable(this)) {
+                // Si es draggable, usar OnTouchListener para permitir drag desde iconos
+                setupIconDragListener(iconView, packageName, activityName, actionId, isAction);
+            } else {
+                // Si no es draggable, usar OnClickListener normal
+                iconView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        handleIconClick(isAction, actionId, packageName, activityName);
                     }
-                }
-            });
+                });
+            }
             
             iconContainer.addView(iconView);
         }
     }
     
+    private void launchAutoStartApp() {
+        try {
+            // Verificar si ya se lanzó en esta sesión
+            if (FloatingButtonConfig.isAutoStartLaunched(this)) {
+                Log.d(TAG, "App de inicio automático ya fue lanzada en esta sesión");
+                return;
+            }
+            
+            // Obtener app configurada para inicio automático
+            String packageName = FloatingButtonConfig.getAutoStartPackage(this);
+            String activityName = FloatingButtonConfig.getAutoStartActivity(this);
+            
+            if (packageName == null || packageName.isEmpty()) {
+                return; // No hay app configurada
+            }
+            
+            Log.d(TAG, "Lanzando app de inicio automático: " + packageName + (activityName != null ? " (" + activityName + ")" : ""));
+            
+            // Lanzar la app con un pequeño delay para asegurar que el servicio esté completamente iniciado
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                try {
+                    openApp(packageName, activityName);
+                    // Marcar como lanzada
+                    FloatingButtonConfig.setAutoStartLaunched(this, true);
+                    Log.d(TAG, "App de inicio automático lanzada exitosamente");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error al lanzar app de inicio automático", e);
+                }
+            }, 2000); // Delay de 2 segundos para dar tiempo al sistema
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error en launchAutoStartApp", e);
+        }
+    }
+    
     private void openApp(String packageName) {
         openApp(packageName, null);
+    }
+    
+    private void handleIconClick(boolean isAction, String actionId, String packageName, String activityName) {
+        // Si el dock está oculto, solo mostrarlo, NO ejecutar la acción
+        if (isDockHidden) {
+            showDock();
+            return; // No ejecutar la acción cuando está oculto
+        }
+        
+        // Si está visible, ejecutar la acción normalmente
+        executeIconAction(isAction, actionId, packageName, activityName);
+    }
+    
+    private void executeIconAction(boolean isAction, String actionId, String packageName, String activityName) {
+        // Reiniciar timer de ocultar si está configurado
+        resetHideTimeout();
+        
+        if (isAction && actionId != null) {
+            // Ejecutar acción del sistema
+            ActionExecutor.executeAction(this, actionId);
+        } else {
+            // Abrir app normal
+            openApp(packageName, activityName);
+        }
     }
     
     private void openApp(String packageName, String activityName) {
@@ -510,7 +1582,7 @@ public class BackgroundService extends Service {
         // Migrar valor antiguo si existe
         FloatingButtonConfig.migrateOldPositionMargin(this);
         
-        String position = FloatingButtonConfig.getPosition(this);
+        boolean isDraggable = FloatingButtonConfig.isDockDraggable(this);
         int marginXDp = FloatingButtonConfig.getPositionMarginX(this);
         int marginYDp = FloatingButtonConfig.getPositionMarginY(this);
         float density = getResources().getDisplayMetrics().density;
@@ -522,63 +1594,143 @@ public class BackgroundService extends Service {
         int screenWidth = displayMetrics.widthPixels;
         int screenHeight = displayMetrics.heightPixels;
         
-        // Resetear valores
-        params.x = 0;
-        params.y = 0;
+        // Si es draggable, calcular posición absoluta basada en la posición predefinida y márgenes
+        if (isDraggable) {
+            String position = FloatingButtonConfig.getPosition(this);
+            params.gravity = Gravity.TOP | Gravity.START;
+            
+            // Calcular posición absoluta basada en la posición predefinida
+            int absoluteX = 0;
+            int absoluteY = 0;
+            
+            // Obtener el ancho del dock si está disponible
+            int dockWidth = 0;
+            int dockHeight = 0;
+            if (floatingButtonView != null) {
+                floatingButtonView.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                );
+                dockWidth = floatingButtonView.getMeasuredWidth();
+                dockHeight = floatingButtonView.getMeasuredHeight();
+            }
+            
+            switch (position) {
+                case "top_left":
+                    absoluteX = marginXPx;
+                    absoluteY = marginYPx;
+                    break;
+                case "top_center":
+                    absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0); // Centrado considerando el ancho del dock
+                    absoluteY = marginYPx;
+                    break;
+                case "top_right":
+                    absoluteX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0); // Desde la derecha
+                    absoluteY = marginYPx;
+                    break;
+                case "center_left":
+                    absoluteX = marginXPx;
+                    absoluteY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0); // Centrado verticalmente
+                    break;
+                case "center_right":
+                    absoluteX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0); // Desde la derecha
+                    absoluteY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0); // Centrado verticalmente
+                    break;
+                case "bottom_left":
+                    absoluteX = marginXPx;
+                    absoluteY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0); // Desde abajo
+                    break;
+                case "bottom_center":
+                    absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0); // Centrado horizontalmente
+                    absoluteY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0); // Desde abajo
+                    break;
+                case "bottom_right":
+                default:
+                    absoluteX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0); // Desde la derecha
+                    absoluteY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0); // Desde abajo
+                    break;
+            }
+            
+            params.x = absoluteX;
+            params.y = absoluteY;
+            
+            // Guardar esta posición calculada como los nuevos márgenes
+            int calculatedMarginXDp = (int) (absoluteX / density);
+            int calculatedMarginYDp = (int) (absoluteY / density);
+            FloatingButtonConfig.savePositionMarginX(this, calculatedMarginXDp);
+            FloatingButtonConfig.savePositionMarginY(this, calculatedMarginYDp);
+            
+            Log.d(TAG, "Posición draggable calculada desde " + position + ": X=" + absoluteX + "px (" + calculatedMarginXDp + "dp), Y=" + absoluteY + "px (" + calculatedMarginYDp + "dp)");
+            return;
+        }
         
-        // Aplicar posición y margen según la configuración
-        // Nota: Con Gravity.END, valores positivos de x se aplican desde el borde derecho
-        // Con Gravity.BOTTOM, valores positivos de y se aplican desde el borde inferior
+        // Si no es draggable, usar sistema de posiciones predefinidas con coordenadas absolutas
+        // Esto permite márgenes negativos y posiciones fuera de la pantalla
+        String position = FloatingButtonConfig.getPosition(this);
+        
+        // Usar siempre coordenadas absolutas con Gravity.TOP | Gravity.START
+        // para permitir posiciones fuera de la pantalla
+        params.gravity = Gravity.TOP | Gravity.START;
+        
+        // Obtener dimensiones del dock si está disponible
+        int dockWidth = 0;
+        int dockHeight = 0;
+        if (floatingButtonView != null) {
+            floatingButtonView.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            );
+            dockWidth = floatingButtonView.getMeasuredWidth();
+            dockHeight = floatingButtonView.getMeasuredHeight();
+        }
+        
+        // Calcular posición absoluta basada en la posición predefinida y márgenes
+        int absoluteX = 0;
+        int absoluteY = 0;
+        
         switch (position) {
             case "top_left":
-                params.gravity = Gravity.TOP | Gravity.START;
-                params.x = marginXPx; // Margen horizontal desde borde izquierdo
-                params.y = marginYPx; // Margen vertical desde borde superior
+                absoluteX = marginXPx; // Margen horizontal desde borde izquierdo (puede ser negativo)
+                absoluteY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                 break;
             case "top_center":
-                params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-                params.x = 0; // Centrado horizontalmente
-                params.y = marginYPx; // Margen vertical desde borde superior
+                absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                absoluteY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                 break;
             case "top_right":
-                params.gravity = Gravity.TOP | Gravity.END;
-                params.x = marginXPx; // Margen horizontal desde borde derecho (positivo = desde la derecha)
-                params.y = marginYPx; // Margen vertical desde borde superior
+                absoluteX = screenWidth - (dockWidth > 0 ? dockWidth : 0) - marginXPx; // Desde la derecha - margen X
+                absoluteY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                 break;
             case "center_left":
-                params.gravity = Gravity.CENTER_VERTICAL | Gravity.START;
-                params.x = marginXPx; // Margen horizontal desde borde izquierdo
-                params.y = 0; // Centrado verticalmente
-                break;
-            case "center_center":
-                params.gravity = Gravity.CENTER;
-                params.x = 0; // Centrado horizontalmente
-                params.y = 0; // Centrado verticalmente
+                absoluteX = marginXPx; // Margen horizontal desde borde izquierdo (puede ser negativo)
+                absoluteY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0) + marginYPx; // Centrado + margen Y
                 break;
             case "center_right":
-                params.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
-                params.x = marginXPx; // Margen horizontal desde borde derecho
-                params.y = 0; // Centrado verticalmente
+                absoluteX = screenWidth - (dockWidth > 0 ? dockWidth : 0) - marginXPx; // Desde la derecha - margen X
+                absoluteY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0) + marginYPx; // Centrado + margen Y
                 break;
             case "bottom_left":
-                params.gravity = Gravity.BOTTOM | Gravity.START;
-                params.x = marginXPx; // Margen horizontal desde borde izquierdo
-                params.y = marginYPx; // Margen vertical desde borde inferior (positivo = desde abajo)
+                absoluteX = marginXPx; // Margen horizontal desde borde izquierdo (puede ser negativo)
+                absoluteY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                 break;
             case "bottom_center":
-                params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-                params.x = 0; // Centrado horizontalmente
-                params.y = marginYPx; // Margen vertical desde borde inferior
+                absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                absoluteY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                 break;
             case "bottom_right":
             default:
-                params.gravity = Gravity.BOTTOM | Gravity.END;
-                params.x = marginXPx; // Margen horizontal desde borde derecho
-                params.y = marginYPx; // Margen vertical desde borde inferior
+                absoluteX = screenWidth - (dockWidth > 0 ? dockWidth : 0) - marginXPx; // Desde la derecha - margen X
+                absoluteY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                 break;
         }
         
-        Log.d(TAG, "Posición aplicada: " + position + ", margen X: " + marginXPx + "px (" + marginXDp + "dp), margen Y: " + marginYPx + "px (" + marginYDp + "dp), x=" + params.x + ", y=" + params.y);
+        params.x = absoluteX;
+        params.y = absoluteY;
+        
+        // Asegurar que FLAG_LAYOUT_NO_LIMITS esté activo para permitir posiciones fuera de la pantalla
+        params.flags |= WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+        
+        Log.d(TAG, "Posición aplicada: " + position + ", margen X: " + marginXPx + "px (" + marginXDp + "dp), margen Y: " + marginYPx + "px (" + marginYDp + "dp), x=" + params.x + ", y=" + params.y + ", absoluteX=" + absoluteX + ", absoluteY=" + absoluteY);
     }
     
     private void updateDockIcons() {
@@ -602,25 +1754,201 @@ public class BackgroundService extends Service {
             // Recrear iconos si el número cambió
             applyDockBackground(); // Asegurar que el fondo esté actualizado
             createDockIcons();
+            setupDraggable(); // Reconfigurar drag después de recrear iconos
+            setupDockBehavior(); // Reconfigurar comportamiento después de recrear iconos
             return;
         }
+        
+        // Si el número de iconos es el mismo, actualizar los iconos existentes
+        // (por si cambió algún icono o configuración)
+        updateIconSizes();
     }
     
     private void removeFloatingButton() {
         // Remover detección de teclado
         removeKeyboardDetection();
         
+        // Limpiar handlers de drag
+        if (longPressHandler != null) {
+            longPressHandler.removeCallbacksAndMessages(null);
+        }
+        isDragging = false;
+        
         if (floatingButtonView != null && windowManager != null) {
             try {
                 windowManager.removeView(floatingButtonView);
                 floatingButtonView = null;
                 iconContainer = null;
+                dockContainer = null;
+                dragIndicator = null;
                 params = null;
                 Log.d(TAG, "Botón flotante removido");
             } catch (Exception e) {
                 Log.e(TAG, "Error al remover botón flotante", e);
             }
         }
+    }
+    
+    private void createDragIndicator() {
+        if (dockContainer == null) return;
+        
+        // Crear View para el indicador
+        View indicator = new View(this);
+        
+        // Crear GradientDrawable para el fondo redondeado
+        GradientDrawable indicatorBackground = new GradientDrawable();
+        indicatorBackground.setShape(GradientDrawable.RECTANGLE);
+        
+        // Aplicar color con alpha
+        int colorWithAlpha = (DRAG_INDICATOR_ALPHA << 24) | (DRAG_INDICATOR_COLOR & 0x00FFFFFF);
+        indicatorBackground.setColor(colorWithAlpha);
+        
+        indicator.setBackground(indicatorBackground);
+        
+        // Configurar LayoutParams para FrameLayout (dimensiones iniciales, se actualizarán en showDragIndicator)
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, 1);
+        indicator.setLayoutParams(params);
+        
+        // Inicialmente oculto
+        indicator.setVisibility(View.GONE);
+        
+        // Agregar al contenedor
+        dockContainer.addView(indicator);
+        dragIndicator = indicator;
+    }
+    
+    private void showDragIndicator() {
+        if (dragIndicator == null || dockContainer == null || iconContainer == null || params == null) return;
+        
+        // Obtener la posición ACTUAL del dock en la pantalla (no la original guardada)
+        int currentX = params.x;
+        int currentY = params.y;
+        
+        // Calcular siempre la dirección de ocultación basada en la posición actual del dock
+        // Comparar la posición actual con la posición oculta para determinar la dirección
+        String currentHideDirection = "";
+        if (hiddenX < currentX) {
+            currentHideDirection = "left";
+        } else if (hiddenX > currentX) {
+            currentHideDirection = "right";
+        } else if (hiddenY < currentY) {
+            currentHideDirection = "top";
+        } else {
+            currentHideDirection = "bottom";
+        }
+        
+        Log.d(TAG, "showDragIndicator - Posición actual: X=" + currentX + ", Y=" + currentY);
+        Log.d(TAG, "showDragIndicator - Posición oculta: hiddenX=" + hiddenX + ", hiddenY=" + hiddenY);
+        Log.d(TAG, "showDragIndicator - Dirección calculada: " + currentHideDirection);
+        
+        float density = getResources().getDisplayMetrics().density;
+        int indicatorSizePx = (int) (DRAG_INDICATOR_SIZE_DP * density);
+        int sizeReductionPx = (int) (DRAG_INDICATOR_SIZE_REDUCTION_DP * density);
+        
+        // Obtener dimensiones actuales del dock (siempre calcular en el momento de mostrar)
+        // Forzar un layout pass para obtener dimensiones correctas
+        dockContainer.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        );
+        dockContainer.layout(0, 0, dockContainer.getMeasuredWidth(), dockContainer.getMeasuredHeight());
+        
+        iconContainer.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        );
+        iconContainer.layout(0, 0, iconContainer.getMeasuredWidth(), iconContainer.getMeasuredHeight());
+        
+        int dockWidth = iconContainer.getMeasuredWidth();
+        int dockHeight = iconContainer.getMeasuredHeight();
+        
+        // Si las dimensiones son 0, intentar obtenerlas del layout
+        if (dockWidth == 0 || dockHeight == 0) {
+            dockWidth = iconContainer.getWidth();
+            dockHeight = iconContainer.getHeight();
+        }
+        
+        // Si aún son 0, usar valores por defecto razonables
+        if (dockWidth == 0 || dockHeight == 0) {
+            dockWidth = (int) (200 * density); // Valor por defecto razonable
+            dockHeight = (int) (80 * density); // Valor por defecto razonable
+        }
+        
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) dragIndicator.getLayoutParams();
+        GradientDrawable indicatorBackground = (GradientDrawable) dragIndicator.getBackground();
+        
+        // Calcular el tamaño expuesto en píxeles
+        int exposedSizePx = (int) (HIDDEN_DOCK_EXPOSED_SIZE_DP * density);
+        
+        // Calcular dimensiones y posicionar según la dirección de ocultación (usando la dirección calculada)
+        switch (currentHideDirection) {
+            case "left":
+            case "right":
+                // Ocultado hacia izquierda o derecha: indicador vertical
+                params.width = indicatorSizePx;
+                params.height = dockHeight - sizeReductionPx;
+                // Border radius: mitad del ancho (para forma de píldora vertical)
+                indicatorBackground.setCornerRadius(indicatorSizePx / 2f);
+                
+                // Centrar verticalmente en el área expuesta
+                // El área expuesta está en el borde, así que centramos el indicador en esa área
+                if (currentHideDirection.equals("left")) {
+                    // Ocultado hacia la izquierda: indicador en el borde derecho
+                    params.gravity = android.view.Gravity.RIGHT | android.view.Gravity.CENTER_VERTICAL;
+                    // Centrar horizontalmente en el área expuesta (36dp desde el borde derecho)
+                    params.rightMargin = (exposedSizePx - indicatorSizePx) / 2;
+                } else {
+                    // Ocultado hacia la derecha: indicador en el borde izquierdo
+                    params.gravity = android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL;
+                    // Centrar horizontalmente en el área expuesta (36dp desde el borde izquierdo)
+                    params.leftMargin = (exposedSizePx - indicatorSizePx) / 2;
+                }
+                break;
+            case "top":
+            case "bottom":
+                // Ocultado hacia arriba o abajo: indicador horizontal
+                params.width = dockWidth - sizeReductionPx;
+                params.height = indicatorSizePx;
+                // Border radius: mitad de la altura (para forma de píldora horizontal)
+                indicatorBackground.setCornerRadius(indicatorSizePx / 2f);
+                
+                // Centrar horizontalmente en el área expuesta
+                // El área expuesta está en el borde, así que centramos el indicador en esa área
+                if (currentHideDirection.equals("top")) {
+                    // Ocultado hacia arriba: indicador en el borde inferior
+                    params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
+                    // Centrar verticalmente en el área expuesta (36dp desde el borde inferior)
+                    params.bottomMargin = (exposedSizePx - indicatorSizePx) / 2;
+                } else {
+                    // Ocultado hacia abajo: indicador en el borde superior
+                    params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+                    // Centrar verticalmente en el área expuesta (36dp desde el borde superior)
+                    params.topMargin = (exposedSizePx - indicatorSizePx) / 2;
+                }
+                break;
+        }
+        
+        dragIndicator.setLayoutParams(params);
+        dragIndicator.setVisibility(View.VISIBLE);
+        dragIndicator.setAlpha(0f);
+        dragIndicator.animate()
+            .alpha(1f)
+            .setDuration(200)
+            .start();
+    }
+    
+    private void hideDragIndicator() {
+        if (dragIndicator == null) return;
+        
+        dragIndicator.animate()
+            .alpha(0f)
+            .setDuration(200)
+            .withEndAction(() -> {
+                if (dragIndicator != null) {
+                    dragIndicator.setVisibility(View.GONE);
+                }
+            })
+            .start();
     }
     
     private void createNotificationChannel() {
@@ -642,7 +1970,266 @@ public class BackgroundService extends Service {
     public void onDestroy() {
         super.onDestroy();
         Log.d(TAG, "Servicio destruido");
+        // Desregistrar BroadcastReceiver
+        try {
+            unregisterReceiver(configUpdateReceiver);
+        } catch (Exception e) {
+            Log.e(TAG, "Error al desregistrar receiver", e);
+        }
         removeFloatingButton();
+    }
+    
+    // Métodos para actualizar el dock sin reiniciar el servicio
+    private void updateDockConfiguration() {
+        // Actualizar todas las propiedades
+        updateDockBackgroundAnimated();
+        updateIconSizes();
+        updateDockPosition();
+        updateDockIcons();
+        // Actualizar comportamiento del dock (puede haber cambiado)
+        setupDockBehavior();
+        // Actualizar estado de draggable
+        updateDraggableState();
+    }
+    
+    private void updateIconSizes() {
+        if (iconContainer == null) return;
+        
+        int iconSizeDp = FloatingButtonConfig.getIconSize(this);
+        float density = getResources().getDisplayMetrics().density;
+        int iconSizePx = (int) (iconSizeDp * density);
+        
+        int gapDp = FloatingButtonConfig.getIconGap(this);
+        int gapPx = (int) (gapDp * density);
+        
+        int paddingDp = FloatingButtonConfig.getIconPadding(this);
+        int paddingPx = (int) (paddingDp * density);
+        
+        int iconColor = FloatingButtonConfig.getIconColor(this);
+        int iconAlpha = FloatingButtonConfig.getIconAlpha(this);
+        int finalIconColor = (iconAlpha << 24) | (iconColor & 0x00FFFFFF);
+        
+        // Animar cambio de tamaño de iconos
+        for (int i = 0; i < iconContainer.getChildCount(); i++) {
+            View child = iconContainer.getChildAt(i);
+            if (child instanceof ImageView) {
+                ImageView iconView = (ImageView) child;
+                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) iconView.getLayoutParams();
+                
+                // Animar cambio de tamaño
+                ValueAnimator sizeAnimator = ValueAnimator.ofInt(params.width, iconSizePx);
+                sizeAnimator.setDuration(200);
+                sizeAnimator.addUpdateListener(animator -> {
+                    int newSize = (Integer) animator.getAnimatedValue();
+                    params.width = newSize;
+                    params.height = newSize;
+                    iconView.setLayoutParams(params);
+                });
+                sizeAnimator.start();
+                
+                // Actualizar padding y color
+                iconView.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+                iconView.setColorFilter(finalIconColor);
+                
+                // Actualizar margen (gap)
+                if (i > 0) {
+                    params.setMargins(gapPx, 0, 0, 0);
+                } else {
+                    params.setMargins(0, 0, 0, 0);
+                }
+            }
+        }
+    }
+    
+    private void updateDockPosition() {
+        if (params == null || floatingButtonView == null) return;
+        
+        // Migrar valor antiguo si existe
+        FloatingButtonConfig.migrateOldPositionMargin(this);
+        
+        boolean isDraggable = FloatingButtonConfig.isDockDraggable(this);
+        int marginXDp = FloatingButtonConfig.getPositionMarginX(this);
+        int marginYDp = FloatingButtonConfig.getPositionMarginY(this);
+        float density = getResources().getDisplayMetrics().density;
+        int marginXPx = (int) (marginXDp * density);
+        int marginYPx = (int) (marginYDp * density);
+        
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        windowManager.getDefaultDisplay().getMetrics(displayMetrics);
+        int screenWidth = displayMetrics.widthPixels;
+        int screenHeight = displayMetrics.heightPixels;
+        
+        String position = FloatingButtonConfig.getPosition(this);
+        
+        // Obtener dimensiones del dock
+        floatingButtonView.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        );
+        int dockWidth = floatingButtonView.getMeasuredWidth();
+        int dockHeight = floatingButtonView.getMeasuredHeight();
+        
+        int newX = params.x;
+        int newY = params.y;
+        int newGravity = params.gravity;
+        
+        // Si es draggable, calcular posición absoluta
+        if (isDraggable) {
+            newGravity = Gravity.TOP | Gravity.START;
+            
+            switch (position) {
+                case "top_left":
+                    newX = marginXPx;
+                    newY = marginYPx;
+                    break;
+                case "top_center":
+                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0);
+                    newY = marginYPx;
+                    break;
+                case "top_right":
+                    newX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0);
+                    newY = marginYPx;
+                    break;
+                case "center_left":
+                    newX = marginXPx;
+                    newY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0);
+                    break;
+                case "center_right":
+                    newX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0);
+                    newY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0);
+                    break;
+                case "bottom_left":
+                    newX = marginXPx;
+                    newY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0);
+                    break;
+                case "bottom_center":
+                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0);
+                    newY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0);
+                    break;
+                case "bottom_right":
+                default:
+                    newX = screenWidth - marginXPx - (dockWidth > 0 ? dockWidth : 0);
+                    newY = screenHeight - marginYPx - (dockHeight > 0 ? dockHeight : 0);
+                    break;
+            }
+        } else {
+            // Si no es draggable, usar sistema de posiciones predefinidas con coordenadas absolutas
+            // Esto permite márgenes negativos y posiciones fuera de la pantalla
+            newGravity = Gravity.TOP | Gravity.START;
+            
+            switch (position) {
+                case "top_left":
+                    newX = marginXPx; // Margen horizontal desde borde izquierdo (puede ser negativo)
+                    newY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
+                    break;
+                case "top_center":
+                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                    newY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
+                    break;
+                case "top_right":
+                    newX = screenWidth - (dockWidth > 0 ? dockWidth : 0) - marginXPx; // Desde la derecha - margen X
+                    newY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
+                    break;
+                case "center_left":
+                    newX = marginXPx; // Margen horizontal desde borde izquierdo (puede ser negativo)
+                    newY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0) + marginYPx; // Centrado + margen Y
+                    break;
+                case "center_right":
+                    newX = screenWidth - (dockWidth > 0 ? dockWidth : 0) - marginXPx; // Desde la derecha - margen X
+                    newY = (screenHeight / 2) - (dockHeight > 0 ? dockHeight / 2 : 0) + marginYPx; // Centrado + margen Y
+                    break;
+                case "bottom_left":
+                    newX = marginXPx; // Margen horizontal desde borde izquierdo (puede ser negativo)
+                    newY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
+                    break;
+                case "bottom_center":
+                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                    newY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
+                    break;
+                case "bottom_right":
+                default:
+                    newX = screenWidth - (dockWidth > 0 ? dockWidth : 0) - marginXPx; // Desde la derecha - margen X
+                    newY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
+                    break;
+            }
+        }
+        
+        // Asegurar que FLAG_LAYOUT_NO_LIMITS esté activo para permitir posiciones fuera de la pantalla
+        params.flags |= WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+        
+        // Animar cambio de posición y gravity
+        final int finalGravity = newGravity;
+        ValueAnimator xAnimator = ValueAnimator.ofInt(params.x, newX);
+        ValueAnimator yAnimator = ValueAnimator.ofInt(params.y, newY);
+        
+        xAnimator.setDuration(200);
+        yAnimator.setDuration(200);
+        
+        xAnimator.addUpdateListener(animator -> {
+            params.x = (Integer) animator.getAnimatedValue();
+            params.gravity = finalGravity; // Actualizar gravity también
+            params.flags |= WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS; // Mantener flag activo
+            try {
+                windowManager.updateViewLayout(floatingButtonView, params);
+            } catch (Exception e) {
+                Log.e(TAG, "Error al actualizar posición", e);
+            }
+        });
+        
+        yAnimator.addUpdateListener(animator -> {
+            params.y = (Integer) animator.getAnimatedValue();
+            params.gravity = finalGravity; // Actualizar gravity también
+            params.flags |= WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS; // Mantener flag activo
+            try {
+                windowManager.updateViewLayout(floatingButtonView, params);
+            } catch (Exception e) {
+                Log.e(TAG, "Error al actualizar posición", e);
+            }
+        });
+        
+        xAnimator.start();
+        yAnimator.start();
+    }
+    
+    private void updateDockBackgroundAnimated() {
+        if (iconContainer == null) return;
+        
+        try {
+            int radiusDp = FloatingButtonConfig.getBorderRadius(this);
+            float density = getResources().getDisplayMetrics().density;
+            int radiusPx = (int) (radiusDp * density);
+            
+            int bgColor = FloatingButtonConfig.getBackgroundColor(this);
+            int bgAlpha = FloatingButtonConfig.getBackgroundAlpha(this);
+            int finalColor = (bgAlpha << 24) | (bgColor & 0x00FFFFFF);
+            
+            android.graphics.drawable.Drawable currentBg = iconContainer.getBackground();
+            int currentRadius = 0;
+            int currentColor = 0;
+            
+            if (currentBg instanceof GradientDrawable) {
+                GradientDrawable gd = (GradientDrawable) currentBg;
+                currentRadius = (int) gd.getCornerRadius();
+                // Obtener color actual es más complejo, usar el configurado
+                currentColor = finalColor;
+            }
+            
+            // Animar border radius
+            ValueAnimator radiusAnimator = ValueAnimator.ofInt(currentRadius, radiusPx);
+            radiusAnimator.setDuration(200);
+            radiusAnimator.addUpdateListener(animator -> {
+                int newRadius = (Integer) animator.getAnimatedValue();
+                GradientDrawable background = new GradientDrawable();
+                background.setShape(GradientDrawable.RECTANGLE);
+                background.setCornerRadius(newRadius);
+                background.setColor(finalColor);
+                iconContainer.setBackground(background);
+            });
+            radiusAnimator.start();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error al actualizar fondo del dock", e);
+        }
     }
     
     @Override
