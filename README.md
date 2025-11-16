@@ -21,21 +21,28 @@ Floating Dock is an application that creates a floating dock on your Android dev
 ## ✨ Features
 
 - **Floating Dock**: Access your favorite applications from any screen
-- **System Actions**: Control functions like Home, Back, Volume, Media playback, and more
+- **System Actions**: Control functions like Home, Back, Volume, Media playback, Hide Dock, and more
+- **Draggable Dock**: Enable dragging mode to reposition the dock anywhere on screen (long-press for 1 second)
+- **Dock Behavior**:
+  - **Hide on action**: Dock can be hidden using the "Hide Dock" system action
+  - **Hide after time**: Dock automatically hides after a configurable timeout (1-60 seconds)
+- **Auto-start App**: Configure a specific app to launch automatically when the service starts
 - **Full Customization**:
   - Configurable icon size
-  - Initial dock position (9 positions available)
+  - Initial dock position (8 positions available)
   - Background color and transparency
   - Icon color and transparency
   - Dock border radius
   - Icon spacing
   - Icon padding
-  - Margins from edges
-- **Material Symbols Icons**: Over 4,000 icons available
+  - Separate horizontal and vertical margins (supports negative values for off-screen positioning)
+  - Hide timeout configuration (when using "Hide after time" behavior)
+- **Material Symbols Icons**: Over 4,000 icons available (dynamically loaded from JSON)
 - **Native Icons**: Option to use each application's native icon
 - **Activity Selection**: For apps with multiple activities (like car launchers)
 - **Auto Start**: The service starts automatically on system boot
-- **Keyboard Detection**: The dock automatically hides when the keyboard opens
+- **Real-time Updates**: Configuration changes are applied instantly with smooth animations
+- **Multi-language Support**: English and Spanish
 
 ## 🚀 Installation
 
@@ -79,12 +86,18 @@ All settings are saved automatically and applied immediately:
 - **Icon Transparency**: Adjust icon opacity (0-255)
 - **Icon Spacing**: Control the space between dock icons
 - **Icon Padding**: Adjust the internal space of each icon
-- **Margins**: Configure the dock distance from screen edges (horizontal and vertical)
+- **Margins**: Configure the dock distance from screen edges separately for horizontal (X) and vertical (Y) axes. Supports negative values for off-screen positioning
+- **Dock Draggable**: Toggle to enable/disable dock dragging. When enabled, long-press (1 second) on the dock or icons to drag
+- **Dock Behavior**: Choose how the dock behaves:
+  - **Hide on action**: Dock can be hidden using the "Hide Dock" system action
+  - **Hide after time**: Dock automatically hides after a configurable timeout
+- **Hide Timeout**: Configure the timeout in seconds (1-60) for auto-hide behavior (only visible when "Hide after time" is selected)
 
 ### Application Management
 
 - **Edit**: Tap the edit icon to change an app's icon or activity
 - **Delete**: Tap the delete icon to remove an app from the dock
+- **Auto-start**: Tap the rocket icon to configure an app to launch automatically when the service starts (only one app can be set)
 - **Reorder**: Apps are displayed in the order they were added
 
 ## 🎯 Use Cases
@@ -117,10 +130,11 @@ All settings are saved automatically and applied immediately:
 
 ## 📝 Notes
 
-- The dock automatically hides when the keyboard opens
 - Configuration changes are applied immediately without needing to save
 - The service runs in the background and consumes minimal resources
 - The application requires overlay permission to function correctly
+- Dock can be dragged when draggable mode is enabled (long-press for 1 second)
+- Dock can be hidden automatically after a timeout or manually using the "Hide Dock" action
 
 ## 🤝 Contributions
 

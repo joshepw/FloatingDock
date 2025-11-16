@@ -5,9 +5,9 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -60,8 +60,6 @@ public class MainActivity extends AppCompatActivity {
     private Button addAppButton;
     
     private ActivityResultLauncher<Intent> overlayPermissionLauncher;
-    private Handler settingsUpdateHandler;
-    private Runnable settingsUpdateRunnable;
     private boolean isInitializing = true;
 
     @Override
@@ -248,9 +246,16 @@ public class MainActivity extends AppCompatActivity {
         dockAppAdapter = new DockAppAdapter(this, new DockAppAdapter.OnDockAppClickListener() {
             @Override
             public void onDeleteClick(int position) {
+                // Guardar la lista actual antes de eliminar para la comparación
+                List<DockApp> appsBeforeDelete = new ArrayList<>(DockAppManager.getDockApps(MainActivity.this));
+                
+                // Eliminar el app
                 DockAppManager.removeDockApp(MainActivity.this, position);
+                
+                // Refrescar la lista
                 refreshDockAppsList();
-                // Actualizar iconos del dock
+                
+                // Enviar broadcast inmediatamente para actualizar el dock
                 sendConfigUpdateBroadcast("UPDATE_ICONS");
             }
             
@@ -374,10 +379,14 @@ public class MainActivity extends AppCompatActivity {
         dockAppAdapter.updateList(dockApps);
         
         // Detectar si hubo cambios en las apps del dock
-        if (previousDockApps != null && !isInitializing) {
+        // Solo comparar si ya tenemos una lista previa (no en la primera carga)
+        if (previousDockApps != null) {
             if (!dockAppsEqual(previousDockApps, dockApps)) {
                 // Hubo cambios, actualizar iconos del dock
-                sendConfigUpdateBroadcast("UPDATE_ICONS");
+                // Solo enviar broadcast si no estamos inicializando (para evitar broadcasts innecesarios al iniciar)
+                if (!isInitializing) {
+                    sendConfigUpdateBroadcast("UPDATE_ICONS");
+                }
             }
         }
         previousDockApps = new ArrayList<>(dockApps); // Guardar copia para comparar
@@ -448,11 +457,6 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void setupAutoSaveListeners() {
-        settingsUpdateHandler = new Handler(Looper.getMainLooper());
-        settingsUpdateRunnable = () -> {
-            saveAndRestartService();
-        };
-        
         // Listener para tamaño de icono
         iconSizeInput.addTextChangedListener(createTextWatcher(() -> {
             String value = iconSizeInput.getText().toString();
@@ -718,11 +722,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
-    }
-    
-    private void scheduleServiceRestart() {
-        // En lugar de reiniciar el servicio, enviar broadcast para actualizar en tiempo real
-        sendConfigUpdateBroadcast("UPDATE_DOCK_CONFIG");
     }
     
     private void sendConfigUpdateBroadcast(String action) {
@@ -1056,7 +1055,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         // Refrescar lista cuando se vuelve de agregar/editar
-        // refreshDockAppsList() detectará cambios y reiniciará el servicio si es necesario
-        refreshDockAppsList();
+        // Actualizar la lista previa antes de refrescar para que la comparación funcione
+        // (aunque SelectIconActivity ya envía el broadcast, esto asegura que MainActivity también esté actualizado)
+        List<DockApp> currentApps = DockAppManager.getDockApps(this);
+        if (previousDockApps != null && !dockAppsEqual(previousDockApps, currentApps)) {
+            // Hubo cambios, actualizar la lista previa y enviar broadcast
+            previousDockApps = new ArrayList<>(currentApps);
+            refreshDockAppsList();
+            // Asegurar que se envía el broadcast (por si acaso no se envió desde SelectIconActivity)
+            sendConfigUpdateBroadcast("UPDATE_ICONS");
+        } else {
+            // Solo refrescar la lista si no hubo cambios detectados
+            refreshDockAppsList();
+        }
     }
 }

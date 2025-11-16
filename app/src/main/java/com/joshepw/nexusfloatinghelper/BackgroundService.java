@@ -1573,6 +1573,57 @@ public class BackgroundService extends Service {
         // Si el número de iconos es el mismo, actualizar los iconos existentes
         // (por si cambió algún icono o configuración)
         updateIconSizes();
+        updateIconDrawables(dockApps);
+    }
+    
+    private void updateIconDrawables(List<DockApp> dockApps) {
+        if (iconContainer == null || dockApps == null) return;
+        
+        int iconSizeDp = FloatingButtonConfig.getIconSize(this);
+        float density = getResources().getDisplayMetrics().density;
+        int iconSizePx = (int) (iconSizeDp * density);
+        
+        int iconColor = FloatingButtonConfig.getIconColor(this);
+        int iconAlpha = FloatingButtonConfig.getIconAlpha(this);
+        int finalIconColor = (iconAlpha << 24) | (iconColor & 0x00FFFFFF);
+        
+        // Actualizar drawables de cada icono
+        for (int i = 0; i < iconContainer.getChildCount() && i < dockApps.size(); i++) {
+            View child = iconContainer.getChildAt(i);
+            if (child instanceof ImageView) {
+                ImageView iconView = (ImageView) child;
+                DockApp dockApp = dockApps.get(i);
+                
+                if (dockApp != null) {
+                    String iconName = dockApp.getMaterialIconName();
+                    
+                    // Verificar si es icono nativo o Material
+                    if ("native".equals(iconName)) {
+                        // Mostrar icono nativo del app
+                        try {
+                            PackageManager pm = getPackageManager();
+                            android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(dockApp.getPackageName());
+                            iconView.setImageDrawable(appIcon);
+                            iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error al obtener icono nativo para " + dockApp.getPackageName(), e);
+                            // Si falla, usar icono por defecto
+                            iconView.setImageDrawable(ContextCompat.getDrawable(this, android.R.drawable.sym_def_app_icon));
+                        }
+                    } else {
+                        // Crear y aplicar icono Material
+                        MaterialIconDrawable iconDrawable = new MaterialIconDrawable(this);
+                        iconDrawable.setIcon(iconName);
+                        iconDrawable.setSize(iconSizePx);
+                        iconDrawable.setColor(finalIconColor);
+                        // Configurar bounds del drawable
+                        iconDrawable.setBounds(0, 0, iconSizePx, iconSizePx);
+                        iconView.setImageDrawable(iconDrawable);
+                        iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                    }
+                }
+            }
+        }
     }
     
     private void removeFloatingButton() {

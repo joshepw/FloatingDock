@@ -59,6 +59,9 @@ public class SelectIconActivity extends AppCompatActivity {
                 allIconNames = new ArrayList<>();
             }
             
+            // Calcular número de columnas dinámicamente basado en el ancho de la pantalla
+            int spanCount = calculateSpanCount();
+            
             final String finalActivityName = activityName;
             final String finalPackageName = packageName; // Para usar en el listener
             adapter = new IconSelectionAdapter(this, iconName -> {
@@ -80,6 +83,11 @@ public class SelectIconActivity extends AppCompatActivity {
                                 dockApp.setActionType("app");
                             }
                             DockAppManager.updateDockApp(this, index, dockApp);
+                            
+                            // Enviar broadcast para actualizar el dock inmediatamente
+                            android.content.Intent updateIntent = new android.content.Intent("UPDATE_ICONS");
+                            updateIntent.setPackage(getPackageName());
+                            sendBroadcast(updateIntent);
                         }
                     } else {
                         // Agregar nueva app o acción
@@ -100,6 +108,11 @@ public class SelectIconActivity extends AppCompatActivity {
                         DockAppManager.addDockApp(this, newDockApp);
                     }
                     
+                    // Enviar broadcast para actualizar el dock inmediatamente
+                    android.content.Intent updateIntent = new android.content.Intent("UPDATE_ICONS");
+                    updateIntent.setPackage(getPackageName());
+                    sendBroadcast(updateIntent);
+                    
                     finish();
                 } catch (Exception e) {
                     android.util.Log.e("SelectIconActivity", "Error al guardar app/acción", e);
@@ -107,7 +120,7 @@ public class SelectIconActivity extends AppCompatActivity {
                 }
             }, finalPackageName != null ? finalPackageName : "");
             
-            iconsRecycler.setLayoutManager(new GridLayoutManager(this, 4));
+            iconsRecycler.setLayoutManager(new GridLayoutManager(this, spanCount));
             iconsRecycler.setAdapter(adapter);
             
             // Inicializar Handler para debounce
@@ -177,6 +190,33 @@ public class SelectIconActivity extends AppCompatActivity {
         } catch (Exception e) {
             android.util.Log.e("SelectIconActivity", "Error en applyFilters", e);
         }
+    }
+    
+    private int calculateSpanCount() {
+        // Obtener el ancho de la pantalla en píxeles
+        android.util.DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        int screenWidthPx = displayMetrics.widthPixels;
+        
+        // Convertir a dp
+        float density = displayMetrics.density;
+        int screenWidthDp = (int) (screenWidthPx / density);
+        
+        // Tamaño mínimo deseado para cada celda (en dp)
+        // Considerando padding (16dp * 2 = 32dp), márgenes (4dp * 2 = 8dp), 
+        // y el ancho del icono (48dp) + texto, usar un tamaño mínimo de 100dp por icono
+        int minCellSizeDp = 100;
+        
+        // Calcular número de columnas
+        int spanCount = screenWidthDp / minCellSizeDp;
+        
+        // Asegurar mínimo de 3 columnas y máximo de 8 columnas
+        if (spanCount < 3) {
+            spanCount = 3;
+        } else if (spanCount > 8) {
+            spanCount = 8;
+        }
+        
+        return spanCount;
     }
     
     @Override
