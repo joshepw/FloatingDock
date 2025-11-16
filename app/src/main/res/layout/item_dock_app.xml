@@ -43,6 +43,17 @@
         </LinearLayout>
 
         <ImageView
+            android:id="@+id/auto_start_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="8dp"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="@string/auto_start_app" />
+
+        <ImageView
             android:id="@+id/edit_icon_button"
             android:layout_width="32dp"
             android:layout_height="32dp"
@@ -51,7 +62,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="Editar icono" />
+            android:contentDescription="@string/edit_icon" />
 
         <ImageView
             android:id="@+id/delete_button"
@@ -61,7 +72,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="Eliminar" />
+            android:contentDescription="@string/delete" />
 
     </LinearLayout>
 

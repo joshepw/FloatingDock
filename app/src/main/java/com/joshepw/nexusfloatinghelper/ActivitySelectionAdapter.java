@@ -69,7 +69,7 @@ public class ActivitySelectionAdapter extends RecyclerView.Adapter<RecyclerView.
             // Separador, actualizar texto
             TextView separatorText = ((SeparatorViewHolder) holder).itemView.findViewById(R.id.separator_text);
             if (separatorText != null) {
-                separatorText.setText("Activities no lanzables");
+                separatorText.setText(context.getString(R.string.non_launchable_activities));
             }
         } else if (holder instanceof ActivityViewHolder) {
             int activityPosition = position;

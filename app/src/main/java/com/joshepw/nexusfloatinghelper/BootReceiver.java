@@ -24,6 +24,10 @@ public class BootReceiver extends BroadcastReceiver {
             "android.intent.action.QUICKBOOT_POWERON".equals(action) ||
             "com.htc.intent.action.QUICKBOOT_POWERON".equals(action)) {
             
+            // Limpiar flag de app lanzada al arrancar el sistema
+            FloatingButtonConfig.setAutoStartLaunched(context, false);
+            Log.d(TAG, "Flag de inicio automático limpiado al arrancar el sistema");
+            
             Log.d(TAG, "Boot completado, iniciando servicio con delay de " + DELAY_MS + "ms");
             
             // Usar Handler para agregar un pequeño delay y asegurar que el sistema esté completamente listo

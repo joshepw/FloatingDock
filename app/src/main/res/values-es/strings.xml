@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">Floating Dock</string>
+    
+    <!-- Service Notification -->
+    <string name="service_notification_title">Nexus Floating Helper</string>
+    <string name="service_notification_text">Servicio en ejecución</string>
+    
+    <!-- Main Activity -->
+    <string name="apps_dock_title">Apps del Dock</string>
+    <string name="add_app_button">Agregar App al Dock</string>
+    <string name="dock_config_title">Configuración del Dock</string>
+    <string name="save_config_button">Guardar Configuración</string>
+    <string name="start_service_button">Iniciar/Reiniciar Servicio</string>
+    
+    <!-- Position Labels -->
+    <string name="position_label">Posición inicial:</string>
+    <string name="position_top_left">Superior Izquierda</string>
+    <string name="position_top_center">Superior Centro</string>
+    <string name="position_top_right">Superior Derecha</string>
+    <string name="position_center_left">Centro Izquierda</string>
+    <string name="position_center_right">Centro Derecha</string>
+    <string name="position_bottom_left">Inferior Izquierda</string>
+    <string name="position_bottom_center">Inferior Centro</string>
+    <string name="position_bottom_right">Inferior Derecha</string>
+    
+    <!-- Configuration Labels -->
+    <string name="background_color_label">Color de fondo (hex):</string>
+    <string name="background_alpha_label">Alpha de fondo (0-255):</string>
+    <string name="icon_size_label">Tamaño del icono (dp):</string>
+    <string name="border_radius_label">Border Radius (dp):</string>
+    <string name="icon_color_label">Color de iconos (hex):</string>
+    <string name="icon_alpha_label">Alpha de iconos (0-255):</string>
+    <string name="icon_padding_label">Padding de iconos (dp):</string>
+    <string name="icon_gap_label">Separación entre iconos (dp):</string>
+    <string name="position_margin_x_label">Margen horizontal (dp):</string>
+    <string name="position_margin_y_label">Margen vertical (dp):</string>
+    
+    <!-- Hints -->
+    <string name="hint_color_hex">000000</string>
+    <string name="hint_icon_color_hex">FFFFFF</string>
+    <string name="hint_icon_size">24</string>
+    <string name="hint_border_radius">8</string>
+    <string name="hint_alpha">128</string>
+    <string name="hint_icon_alpha">255</string>
+    <string name="hint_icon_gap">8</string>
+    <string name="hint_icon_padding">0</string>
+    <string name="hint_margin">16</string>
+    <string name="hint_package_name">package.name.example</string>
+    
+    <!-- Select App Activity -->
+    <string name="search_app_hint">Buscar app…</string>
+    
+    <!-- Select Activity Activity -->
+    <string name="select_activity_title">Selecciona una Activity</string>
+    <string name="search_activity_hint">Buscar activity…</string>
+    <string name="non_launchable_activities">Activities no lanzables</string>
+    
+    <!-- Select Action Activity -->
+    <string name="select_action_title">Selecciona una Acción del Sistema</string>
+    <string name="search_action_hint">Buscar acción…</string>
+    
+    <!-- Add Action Item -->
+    <string name="add_system_action">Agregar acción del sistema</string>
+    <string name="add_system_action_desc">Home, Back, Volumen, Play, etc.</string>
+    
+    <!-- System Actions -->
+    <string name="action_home">Home</string>
+    <string name="action_home_desc">Ir a la pantalla principal</string>
+    <string name="action_back">Back</string>
+    <string name="action_back_desc">Volver atrás</string>
+    <string name="action_recent">Aplicaciones recientes</string>
+    <string name="action_recent_desc">Ver aplicaciones recientes</string>
+    <string name="action_volume_up">Subir volumen</string>
+    <string name="action_volume_up_desc">Aumentar volumen</string>
+    <string name="action_volume_down">Bajar volumen</string>
+    <string name="action_volume_down_desc">Disminuir volumen</string>
+    <string name="action_volume_mute">Silenciar</string>
+    <string name="action_volume_mute_desc">Silenciar volumen</string>
+    <string name="action_media_play">Reproducir</string>
+    <string name="action_media_play_desc">Reproducir medios</string>
+    <string name="action_media_pause">Pausar</string>
+    <string name="action_media_pause_desc">Pausar reproducción</string>
+    <string name="action_media_next">Siguiente</string>
+    <string name="action_media_next_desc">Siguiente canción/pista</string>
+    <string name="action_media_previous">Anterior</string>
+    <string name="action_media_previous_desc">Canción/pista anterior</string>
+    <string name="action_answer_call">Contestar llamada</string>
+    <string name="action_answer_call_desc">Contestar llamada entrante</string>
+    <string name="action_end_call">Colgar llamada</string>
+    <string name="action_end_call_desc">Terminar llamada</string>
+    <string name="action_voice_assistant">Asistente de voz</string>
+    <string name="action_voice_assistant_desc">Activar asistente de voz</string>
+    <string name="action_hide_dock">Ocultar Dock</string>
+    <string name="action_hide_dock_desc">Ocultar el dock flotante</string>
+    
+    <!-- Manual Entry Dialog -->
+    <string name="manual_entry_title">Ingresar Package Name</string>
+    <string name="manual_entry_message">Ingresa el package name de la aplicación que deseas agregar</string>
+    <string name="button_continue">Continuar</string>
+    <string name="button_cancel">Cancelar</string>
+    <string name="error_package_not_found">Package name no encontrado</string>
+    <string name="error_enter_package">Por favor ingresa un package name</string>
+    
+    <!-- Dock App Item -->
+    <string name="icon_native">Icono: Nativo</string>
+    <string name="icon_format">Icono: %1$s</string>
+    
+    <!-- Icon Selection -->
+    <string name="icon_native_text">Icono nativo</string>
+    
+    <!-- Messages -->
+    <string name="service_started">Servicio iniciado</string>
+    <string name="service_start_error">Error al iniciar servicio: %1$s</string>
+    <string name="overlay_permission_required">Necesitas el permiso de overlay primero</string>
+    
+    <!-- Select Icon Activity -->
+    <string name="select_icon_title">Selecciona un Icono</string>
+    <string name="search_icon_hint">Buscar icono…</string>
+    
+    <!-- Auto Start -->
+    <string name="auto_start_app">Iniciar app automáticamente</string>
+    <string name="auto_start_dialog_title">Inicio Automático al Arrancar</string>
+    <string name="auto_start_dialog_message">¿Deseas que esta app se lance automáticamente cuando el sistema arranque?</string>
+    <string name="auto_start_dialog_activate">Activar</string>
+    <string name="auto_start_dialog_deactivate">Desactivar</string>
+    <string name="auto_start_dialog_cancel">Cancelar</string>
+    <string name="edit_icon">Editar icono</string>
+    <string name="delete">Eliminar</string>
+    
+    <!-- Draggable -->
+    <string name="dock_draggable_label">Dock arrastrable</string>
+    
+    <!-- Dock Behavior -->
+    <string name="dock_behavior_label">Comportamiento del dock:</string>
+    <string name="dock_behavior_fixed">Fijo</string>
+    <string name="dock_behavior_hide_on_action">Se puede ocultar con acción</string>
+    <string name="dock_behavior_hide_after_time">Se oculta después de un tiempo</string>
+    <string name="hide_timeout_label">Tiempo de ocultación (segundos)</string>
+</resources>
+

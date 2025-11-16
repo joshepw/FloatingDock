@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Apps del Dock"
+            android:text="@string/apps_dock_title"
             android:textSize="20sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -31,15 +31,15 @@
             android:id="@+id/add_app_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Agregar App al Dock"
+            android:text="@string/add_app_button"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="24dp" />
 
         <!-- Sección: Configuración -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Configuración del Dock"
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+            android:text="@string/dock_config_title"
             android:textSize="20sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -49,7 +49,7 @@
             android:id="@+id/position_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Posición inicial:"
+            android:text="@string/position_label"
             android:layout_marginTop="8dp" />
 
         <Spinner
@@ -57,6 +57,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="8dp" />
+
+        <!-- Toggle Draggable (full width) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="16dp"
+            android:padding="8dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/dock_draggable_label"
+                android:textSize="16sp" />
+            
+            <Switch
+                android:id="@+id/dock_draggable_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
 
         <!-- Controles en dos columnas -->
         <LinearLayout
@@ -78,7 +100,7 @@
                     android:id="@+id/background_color_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Color de fondo (hex):"
+                    android:text="@string/background_color_label"
                     android:layout_marginTop="8dp" />
 
                 <EditText
@@ -86,7 +108,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="text"
-                    android:hint="000000"
+                    android:hint="@string/hint_color_hex"
                     android:padding="8dp" />
 
                 <!-- Alpha de fondo -->
@@ -94,7 +116,7 @@
                     android:id="@+id/background_alpha_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Alpha de fondo (0-255):"
+                    android:text="@string/background_alpha_label"
                     android:layout_marginTop="8dp" />
 
                 <include
@@ -106,7 +128,7 @@
                     android:id="@+id/icon_size_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Tamaño del icono (dp):"
+                    android:text="@string/icon_size_label"
                     android:layout_marginTop="8dp" />
 
                 <include
@@ -118,7 +140,7 @@
                     android:id="@+id/border_radius_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Border Radius (dp):"
+                    android:text="@string/border_radius_label"
                     android:layout_marginTop="8dp" />
 
                 <include
@@ -130,12 +152,27 @@
                     android:id="@+id/position_margin_x_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Margen horizontal (dp):"
+                    android:text="@string/position_margin_x_label"
                     android:layout_marginTop="8dp" />
 
                 <include
                     android:id="@+id/position_margin_x_container"
                     layout="@layout/number_input_with_controls" />
+
+                <!-- Dock Behavior -->
+                <TextView
+                    android:id="@+id/dock_behavior_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/dock_behavior_label"
+                    android:textSize="16sp"
+                    android:layout_marginTop="16dp" />
+                
+                <Spinner
+                    android:id="@+id/dock_behavior_spinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" />
 
             </LinearLayout>
 
@@ -152,7 +189,7 @@
                     android:id="@+id/icon_color_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Color de iconos (hex):"
+                    android:text="@string/icon_color_label"
                     android:layout_marginTop="8dp" />
 
                 <EditText
@@ -160,7 +197,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="text"
-                    android:hint="FFFFFF"
+                    android:hint="@string/hint_icon_color_hex"
                     android:padding="8dp" />
 
                 <!-- Alpha de iconos -->
@@ -168,7 +205,7 @@
                     android:id="@+id/icon_alpha_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Alpha de iconos (0-255):"
+                    android:text="@string/icon_alpha_label"
                     android:layout_marginTop="8dp" />
 
                 <include
@@ -180,7 +217,7 @@
                     android:id="@+id/icon_padding_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Padding de iconos (dp):"
+                    android:text="@string/icon_padding_label"
                     android:layout_marginTop="8dp" />
 
                 <include
@@ -192,7 +229,7 @@
                     android:id="@+id/icon_gap_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Separación entre iconos (dp):"
+                    android:text="@string/icon_gap_label"
                     android:layout_marginTop="8dp" />
 
                 <include
@@ -204,12 +241,32 @@
                     android:id="@+id/position_margin_y_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Margen vertical (dp):"
+                    android:text="@string/position_margin_y_label"
                     android:layout_marginTop="8dp" />
 
                 <include
                     android:id="@+id/position_margin_y_container"
                     layout="@layout/number_input_with_controls" />
+
+                <!-- Hide Timeout (solo visible cuando "Hide after time" está seleccionado) -->
+                <LinearLayout
+                    android:id="@+id/hide_timeout_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:layout_marginTop="16dp">
+                    
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/hide_timeout_label"
+                        android:layout_marginTop="8dp" />
+                    
+                    <include
+                        android:id="@+id/hide_timeout_container_input"
+                        layout="@layout/number_input_with_controls" />
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -220,14 +277,14 @@
             android:id="@+id/save_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Guardar Configuración"
-            android:layout_marginTop="16dp" />
+            android:text="@string/save_config_button"
+            android:layout_marginTop="8dp" />
 
         <Button
             android:id="@+id/start_service_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Iniciar/Reiniciar Servicio"
+            android:text="@string/start_service_button"
             android:layout_marginTop="8dp" />
 
     </LinearLayout>

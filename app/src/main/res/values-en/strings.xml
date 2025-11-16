@@ -92,8 +92,6 @@
     <string name="action_end_call_desc">End call</string>
     <string name="action_voice_assistant">Voice Assistant</string>
     <string name="action_voice_assistant_desc">Activate voice assistant</string>
-    <string name="action_hide_dock">Hide Dock</string>
-    <string name="action_hide_dock_desc">Hide the floating dock</string>
     
     <!-- Manual Entry Dialog -->
     <string name="manual_entry_title">Enter Package Name</string>
@@ -131,11 +129,5 @@
     
     <!-- Draggable -->
     <string name="dock_draggable_label">Draggable dock</string>
-    
-    <!-- Dock Behavior -->
-    <string name="dock_behavior_label">Dock behavior:</string>
-    <string name="dock_behavior_fixed">Fixed</string>
-    <string name="dock_behavior_hide_on_action">Hide on action</string>
-    <string name="dock_behavior_hide_after_time">Hide after time</string>
-    <string name="hide_timeout_label">Hide timeout (seconds)</string>
 </resources>
+

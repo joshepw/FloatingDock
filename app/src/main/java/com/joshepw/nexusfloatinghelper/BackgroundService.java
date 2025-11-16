@@ -13,7 +13,6 @@ import android.content.pm.PackageManager;
 
 import static android.content.Context.RECEIVER_NOT_EXPORTED;
 import android.graphics.PixelFormat;
-import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
@@ -29,7 +28,6 @@ import android.animation.ValueAnimator;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
@@ -38,8 +36,6 @@ import android.widget.LinearLayout;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import java.util.List;
 
@@ -63,10 +59,6 @@ public class BackgroundService extends Service {
     private FrameLayout dockContainer; // Contenedor principal que envuelve iconContainer e indicador
     private View dragIndicator; // Indicador visual cuando el dock está oculto
     private String hideDirection = ""; // Dirección de ocultación: "left", "right", "top", "bottom"
-    private ViewTreeObserver.OnGlobalLayoutListener keyboardListener;
-    private View keyboardDetectionView;
-    private WindowManager.LayoutParams keyboardDetectionParams;
-    private boolean isKeyboardVisible = false;
     
     // Variables para drag
     private boolean isDragging = false;
@@ -264,202 +256,20 @@ public class BackgroundService extends Service {
             // Configurar comportamiento del dock (ocultar/mostrar)
             setupDockBehavior();
             
-            // Configurar detección de teclado
-            setupKeyboardDetection();
-            
             Log.d(TAG, "Botón flotante mostrado");
         } catch (Exception e) {
             Log.e(TAG, "Error al mostrar botón flotante", e);
         }
     }
-    
-    private void setupKeyboardDetection() {
-        try {
-            // Para Android 11+ (API 30+), usar WindowInsets (método más moderno y eficiente)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                setupKeyboardDetectionWithWindowInsets();
-            } else {
-                // Para versiones anteriores, usar ViewTreeObserver con getWindowVisibleDisplayFrame
-                setupKeyboardDetectionWithViewTreeObserver();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error al configurar detección de teclado", e);
-        }
-    }
-    
-    private void setupKeyboardDetectionWithWindowInsets() {
-        try {
-            // Usar la vista flotante principal como root para detectar insets
-            if (floatingButtonView == null) {
-                Log.w(TAG, "floatingButtonView es null, no se puede configurar detección con WindowInsets");
-                // Fallback al método anterior
-                setupKeyboardDetectionWithViewTreeObserver();
-                return;
-            }
-            
-            // Configurar listener de WindowInsets en la vista raíz del dock
-            View rootView = floatingButtonView.getRootView();
-            if (rootView != null) {
-                ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-                    try {
-                        boolean keyboardNowVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
-                        
-                        if (keyboardNowVisible != isKeyboardVisible) {
-                            isKeyboardVisible = keyboardNowVisible;
-                            
-                            if (isKeyboardVisible) {
-                                // Teclado visible: ocultar dock
-                                if (floatingButtonView != null && floatingButtonView.getVisibility() == View.VISIBLE) {
-                                    floatingButtonView.setVisibility(View.GONE);
-                                    Log.d(TAG, "Teclado detectado (WindowInsets): Dock ocultado");
-                                }
-                            } else {
-                                // Teclado oculto: mostrar dock (solo si hay apps)
-                                if (floatingButtonView != null) {
-                                    List<DockApp> dockApps = DockAppManager.getDockApps(BackgroundService.this);
-                                    if (dockApps != null && !dockApps.isEmpty()) {
-                                        floatingButtonView.setVisibility(View.VISIBLE);
-                                        Log.d(TAG, "Teclado oculto (WindowInsets): Dock mostrado");
-                                    }
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error en detección de teclado con WindowInsets", e);
-                    }
-                    return insets;
-                });
-                
-                Log.d(TAG, "Detección de teclado configurada con WindowInsets (API 30+)");
-            } else {
-                Log.w(TAG, "rootView es null, usando fallback");
-                setupKeyboardDetectionWithViewTreeObserver();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error al configurar detección con WindowInsets", e);
-            // Fallback al método anterior
-            setupKeyboardDetectionWithViewTreeObserver();
-        }
-    }
-    
-    private void setupKeyboardDetectionWithViewTreeObserver() {
-        try {
-            // Crear una vista invisible que cubra toda la pantalla para detectar cambios
-            keyboardDetectionView = new View(this);
-            keyboardDetectionView.setBackgroundColor(0x00000000); // Completamente transparente
-            
-            // Obtener dimensiones de la pantalla
-            DisplayMetrics displayMetrics = new DisplayMetrics();
-            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
-            int screenWidth = displayMetrics.widthPixels;
-            int screenHeight = displayMetrics.heightPixels;
-            
-            // Configurar parámetros para la vista de detección
-            keyboardDetectionParams = new WindowManager.LayoutParams(
-                screenWidth,
-                screenHeight,
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O 
-                    ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                    : WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                    | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                    | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT
-            );
-            keyboardDetectionParams.gravity = Gravity.TOP | Gravity.START;
-            keyboardDetectionParams.x = 0;
-            keyboardDetectionParams.y = 0;
-            
-            // Agregar la vista de detección al WindowManager
-            windowManager.addView(keyboardDetectionView, keyboardDetectionParams);
-            
-            // Crear listener para detectar cambios en el layout usando getWindowVisibleDisplayFrame
-            keyboardListener = new ViewTreeObserver.OnGlobalLayoutListener() {
-                @Override
-                public void onGlobalLayout() {
-                    try {
-                        if (keyboardDetectionView == null) return;
-                        
-                        Rect r = new Rect();
-                        // Obtener el área visible de la ventana
-                        keyboardDetectionView.getWindowVisibleDisplayFrame(r);
-                        
-                        // Obtener altura total de la pantalla
-                        int screenHeight = keyboardDetectionView.getRootView().getHeight();
-                        
-                        // Calcular altura del teclado virtual
-                        // Cuando el teclado aparece, r.bottom se reduce
-                        int softKeyboardHeight = screenHeight - r.bottom;
-                        
-                        // Umbral: si la altura del teclado es mayor a 100px, consideramos que está visible
-                        // Este es el método recomendado por Android
-                        boolean keyboardNowVisible = softKeyboardHeight > 100;
-                        
-                        if (keyboardNowVisible != isKeyboardVisible) {
-                            isKeyboardVisible = keyboardNowVisible;
-                            
-                            if (isKeyboardVisible) {
-                                // Teclado visible: ocultar dock
-                                if (floatingButtonView != null && floatingButtonView.getVisibility() == View.VISIBLE) {
-                                    floatingButtonView.setVisibility(View.GONE);
-                                    Log.d(TAG, "Teclado detectado (getWindowVisibleDisplayFrame): Dock ocultado (altura: " + softKeyboardHeight + "px)");
-                                }
-                            } else {
-                                // Teclado oculto: mostrar dock (solo si hay apps)
-                                if (floatingButtonView != null) {
-                                    List<DockApp> dockApps = DockAppManager.getDockApps(BackgroundService.this);
-                                    if (dockApps != null && !dockApps.isEmpty()) {
-                                        floatingButtonView.setVisibility(View.VISIBLE);
-                                        Log.d(TAG, "Teclado oculto (getWindowVisibleDisplayFrame): Dock mostrado");
-                                    }
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error en detección de teclado", e);
-                    }
-                }
-            };
-            
-            // Agregar listener a la vista de detección
-            keyboardDetectionView.getViewTreeObserver().addOnGlobalLayoutListener(keyboardListener);
-            
-            Log.d(TAG, "Detección de teclado configurada con ViewTreeObserver (getWindowVisibleDisplayFrame)");
-        } catch (Exception e) {
-            Log.e(TAG, "Error al configurar detección de teclado con ViewTreeObserver", e);
-        }
-    }
-    
-    private void removeKeyboardDetection() {
-        try {
-            if (keyboardDetectionView != null) {
-                if (keyboardListener != null) {
-                    keyboardDetectionView.getViewTreeObserver().removeOnGlobalLayoutListener(keyboardListener);
-                }
-                windowManager.removeView(keyboardDetectionView);
-                keyboardDetectionView = null;
-                keyboardListener = null;
-                Log.d(TAG, "Detección de teclado removida");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error al remover detección de teclado", e);
-        }
-    }
-    
     private void setupDockBehavior() {
         if (floatingButtonView == null || iconContainer == null) return;
         
         String behavior = FloatingButtonConfig.getDockBehavior(this);
         
-        if ("fixed".equals(behavior)) {
-            // Modo fijo: siempre visible
-            if (isDockHidden) {
-                showDock();
-            }
-            cancelHideTimeout();
-        } else if ("hide_on_action".equals(behavior)) {
-            // Modo ocultar con acción: por ahora solo mostramos, la acción se implementará después
+        // "fixed" se ha eliminado, ahora "hide_on_action" es el comportamiento por defecto
+        // Ambos se comportan igual: el dock está visible y se puede ocultar con una acción
+        if ("hide_on_action".equals(behavior)) {
+            // Modo ocultar con acción: el dock está visible y se puede ocultar con una acción
             if (isDockHidden) {
                 showDock();
             }
@@ -590,7 +400,7 @@ public class BackgroundService extends Service {
                     // Queremos que solo se vean exposedSizePx desde el borde derecho de la pantalla
                     // El borde derecho del dock debe estar en: screenWidth + exposedSizePx
                     // El borde izquierdo del dock (hiddenX) debe estar en: screenWidth + exposedSizePx - dockWidth
-                    hiddenX = screenWidth + exposedSizePx - dockWidth;
+                    hiddenX = screenWidth - exposedSizePx;
                     hiddenY = originalY;
                     Log.d(TAG, "hideDock - Ocultando hacia derecha: screenWidth=" + screenWidth + ", exposedSizePx=" + exposedSizePx + ", dockWidth=" + dockWidth + ", hiddenX=" + hiddenX + ", bordeDerecho=" + (hiddenX + dockWidth) + ", visible=" + (screenWidth - hiddenX));
                 } else if (minDistance == distanceToTop) {
@@ -1099,6 +909,11 @@ public class BackgroundService extends Service {
                     return false;
                 }
                 
+                // No permitir drag si el dock está oculto
+                if (isDockHidden) {
+                    return false;
+                }
+                
                 switch (event.getAction()) {
                     case android.view.MotionEvent.ACTION_DOWN:
                         // Guardar posición inicial del touch
@@ -1116,6 +931,8 @@ public class BackgroundService extends Service {
                             if (!isDragging) {
                                 isDragging = true;
                                 updateDockBorder(true); // Mostrar borde naranja
+                                // Resetear timer de ocultación si está configurado "hide_after_time"
+                                resetHideTimeout();
                                 Log.d(TAG, "Long press detectado, iniciando drag");
                             }
                         };
@@ -1127,7 +944,14 @@ public class BackgroundService extends Service {
                             if (!isDragging) {
                                 isDragging = true;
                                 updateDockBorder(true); // Mostrar borde naranja
+                                // Resetear timer de ocultación si está configurado "hide_after_time"
+                                resetHideTimeout();
                                 longPressHandler.removeCallbacks(longPressRunnable);
+                            }
+                            
+                            // Si ya está arrastrando, resetear el timer continuamente
+                            if (isDragging) {
+                                resetHideTimeout();
                             }
                             
                             // Calcular nueva posición
@@ -1153,10 +977,10 @@ public class BackgroundService extends Service {
                         longPressHandler.removeCallbacks(longPressRunnable);
                         
                         if (isDragging) {
-                            // Guardar nueva posición
-                            saveCurrentPosition();
                             isDragging = false;
                             updateDockBorder(false); // Ocultar borde naranja
+                            // Reiniciar timer de ocultación después de terminar el drag
+                            resetHideTimeout();
                             Log.d(TAG, "Drag finalizado, posición guardada");
                         }
                         return isDragging;
@@ -1194,6 +1018,11 @@ public class BackgroundService extends Service {
                     return false;
                 }
                 
+                // No permitir drag si el dock está oculto
+                if (isDockHidden) {
+                    return false;
+                }
+                
                 switch (event.getAction()) {
                     case android.view.MotionEvent.ACTION_DOWN:
                         touchStarted[0] = true;
@@ -1215,6 +1044,8 @@ public class BackgroundService extends Service {
                                 longPressActivated[0] = true;
                                 isDragging = true;
                                 updateDockBorder(true); // Mostrar borde naranja
+                                // Resetear timer de ocultación si está configurado "hide_after_time"
+                                resetHideTimeout();
                                 Log.d(TAG, "Long press en icono detectado (1 segundo), drag habilitado");
                             }
                         };
@@ -1225,6 +1056,9 @@ public class BackgroundService extends Service {
                         // Solo permitir drag si ya pasó el segundo (long press activado)
                         if (longPressActivated[0]) {
                             isCurrentlyDragging[0] = true;
+                            
+                            // Si ya está arrastrando, resetear el timer continuamente
+                            resetHideTimeout();
                             
                             // Calcular nueva posición
                             float moveDeltaX = event.getRawX() - iconInitialTouchX[0];
@@ -1253,10 +1087,11 @@ public class BackgroundService extends Service {
                         
                         if (isCurrentlyDragging[0]) {
                             // Hubo drag (se mantuvo presionado más de 1 segundo y se movió)
-                            saveCurrentPosition();
                             Log.d(TAG, "Drag desde icono finalizado, posición guardada");
                             isDragging = false;
                             updateDockBorder(false); // Ocultar borde naranja
+                            // Reiniciar timer de ocultación después de terminar el drag
+                            resetHideTimeout();
                             longPressActivated[0] = false;
                             isCurrentlyDragging[0] = false;
                             return true; // Consumir el evento para evitar click
@@ -1275,30 +1110,6 @@ public class BackgroundService extends Service {
                 return true;
             }
         });
-    }
-    
-    private void saveCurrentPosition() {
-        if (params == null) return;
-        
-        try {
-            // Convertir posición actual a una posición relativa y guardar los offsets
-            // Como ahora es draggable, guardamos los offsets X e Y directamente
-            DisplayMetrics displayMetrics = new DisplayMetrics();
-            windowManager.getDefaultDisplay().getMetrics(displayMetrics);
-            float density = getResources().getDisplayMetrics().density;
-            
-            // Convertir píxeles a dp
-            int marginXDp = (int) (params.x / density);
-            int marginYDp = (int) (params.y / density);
-            
-            // Guardar los márgenes actualizados
-            FloatingButtonConfig.savePositionMarginX(this, marginXDp);
-            FloatingButtonConfig.savePositionMarginY(this, marginYDp);
-            
-            Log.d(TAG, "Posición guardada: X=" + marginXDp + "dp, Y=" + marginYDp + "dp");
-        } catch (Exception e) {
-            Log.e(TAG, "Error al guardar posición actual", e);
-        }
     }
     
     private void applyDockBackground() {
@@ -1350,6 +1161,10 @@ public class BackgroundService extends Service {
                     int borderWidthPx = (int) (borderWidthDp * density);
                     int orangeColor = 0xFFFF9800; // Naranja en ARGB
                     background.setStroke(borderWidthPx, orangeColor);
+                    
+                    // Resetear timer de ocultación cuando se muestra el borde naranja
+                    // (indica que el dock está siendo arrastrado o está listo para arrastrarse)
+                    resetHideTimeout();
                 } else {
                     // Remover borde
                     background.setStroke(0, 0);
@@ -1654,13 +1469,9 @@ public class BackgroundService extends Service {
             params.x = absoluteX;
             params.y = absoluteY;
             
-            // Guardar esta posición calculada como los nuevos márgenes
-            int calculatedMarginXDp = (int) (absoluteX / density);
-            int calculatedMarginYDp = (int) (absoluteY / density);
-            FloatingButtonConfig.savePositionMarginX(this, calculatedMarginXDp);
-            FloatingButtonConfig.savePositionMarginY(this, calculatedMarginYDp);
-            
-            Log.d(TAG, "Posición draggable calculada desde " + position + ": X=" + absoluteX + "px (" + calculatedMarginXDp + "dp), Y=" + absoluteY + "px (" + calculatedMarginYDp + "dp)");
+            // NO guardar los márgenes aquí - mantener los márgenes configurados por el usuario
+            // Los márgenes solo deben cambiar cuando el usuario los modifica explícitamente en la configuración
+            Log.d(TAG, "Posición draggable calculada desde " + position + ": X=" + absoluteX + "px, Y=" + absoluteY + "px, márgenes configurados: X=" + marginXDp + "dp, Y=" + marginYDp + "dp");
             return;
         }
         
@@ -1765,9 +1576,6 @@ public class BackgroundService extends Service {
     }
     
     private void removeFloatingButton() {
-        // Remover detección de teclado
-        removeKeyboardDetection();
-        
         // Limpiar handlers de drag
         if (longPressHandler != null) {
             longPressHandler.removeCallbacksAndMessages(null);

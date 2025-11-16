@@ -156,17 +156,17 @@ public class SelectAppActivity extends AppCompatActivity {
         try {
             // Crear EditText con mejor estilo
             EditText input = new EditText(this);
-            input.setHint("package.name.example");
+            input.setHint(getString(R.string.hint_package_name));
             input.setPadding(32, 32, 32, 32);
             input.setSingleLine(true);
             input.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
             
             // Crear diálogo con estilo Material
             new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Ingresar Package Name")
-                .setMessage("Ingresa el package name de la aplicación que deseas agregar")
+                .setTitle(getString(R.string.manual_entry_title))
+                .setMessage(getString(R.string.manual_entry_message))
                 .setView(input)
-                .setPositiveButton("Continuar", (dialog, which) -> {
+                .setPositiveButton(getString(R.string.button_continue), (dialog, which) -> {
                     try {
                         String packageName = input.getText().toString().trim();
                         if (!packageName.isEmpty()) {
@@ -176,17 +176,17 @@ public class SelectAppActivity extends AppCompatActivity {
                                 startActivity(intent);
                                 finish();
                             } else {
-                                Toast.makeText(this, "Package name no encontrado", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, getString(R.string.error_package_not_found), Toast.LENGTH_SHORT).show();
                             }
                         } else {
-                            Toast.makeText(this, "Por favor ingresa un package name", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, getString(R.string.error_enter_package), Toast.LENGTH_SHORT).show();
                         }
                     } catch (Exception e) {
                         android.util.Log.e("SelectAppActivity", "Error en diálogo manual", e);
                         Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.button_cancel), null)
                 .show();
         } catch (Exception e) {
             android.util.Log.e("SelectAppActivity", "Error al mostrar diálogo manual", e);

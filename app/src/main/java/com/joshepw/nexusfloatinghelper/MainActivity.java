@@ -18,6 +18,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.LinearLayout;
+import android.widget.Switch;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -49,6 +51,10 @@ public class MainActivity extends AppCompatActivity {
     private EditText iconPaddingInput;
     private EditText positionMarginXInput;
     private EditText positionMarginYInput;
+    private Spinner dockBehaviorSpinner;
+    private LinearLayout hideTimeoutContainer;
+    private EditText hideTimeoutInput;
+    private Switch dockDraggableSwitch;
     private Button saveButton;
     private Button startServiceButton;
     private Button addAppButton;
@@ -122,9 +128,18 @@ public class MainActivity extends AppCompatActivity {
         
         View positionMarginXContainer = findViewById(R.id.position_margin_x_container);
         positionMarginXInput = positionMarginXContainer.findViewById(R.id.number_input);
+        // Permitir números negativos para el margen X
+        positionMarginXInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
         
         View positionMarginYContainer = findViewById(R.id.position_margin_y_container);
         positionMarginYInput = positionMarginYContainer.findViewById(R.id.number_input);
+        // Permitir números negativos para el margen Y
+        positionMarginYInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+        
+        dockBehaviorSpinner = findViewById(R.id.dock_behavior_spinner);
+        hideTimeoutContainer = findViewById(R.id.hide_timeout_container);
+        hideTimeoutInput = hideTimeoutContainer.findViewById(R.id.number_input);
+        dockDraggableSwitch = findViewById(R.id.dock_draggable_switch);
         
         saveButton = findViewById(R.id.save_button);
         startServiceButton = findViewById(R.id.start_service_button);
@@ -153,11 +168,14 @@ public class MainActivity extends AppCompatActivity {
         // Padding de iconos: 0-50
         setupNumberControl(R.id.icon_padding_container, 0, 50);
         
-        // Margen de posición X: 0-200
-        setupNumberControl(R.id.position_margin_x_container, 0, 200);
+        // Margen de posición X: -200 a 200 (permite valores negativos)
+        setupNumberControl(R.id.position_margin_x_container, -200, 200);
         
-        // Margen de posición Y: 0-200
-        setupNumberControl(R.id.position_margin_y_container, 0, 200);
+        // Margen de posición Y: -200 a 200 (permite valores negativos)
+        setupNumberControl(R.id.position_margin_y_container, -200, 200);
+        
+        // Hide timeout: 1-60 segundos
+        setupNumberControl(R.id.hide_timeout_container_input, 1, 60);
     }
     
     private void setupNumberControl(int containerId, int min, int max) {
@@ -232,8 +250,13 @@ public class MainActivity extends AppCompatActivity {
             public void onDeleteClick(int position) {
                 DockAppManager.removeDockApp(MainActivity.this, position);
                 refreshDockAppsList();
-                // Reiniciar servicio para aplicar cambios
-                scheduleServiceRestart();
+                // Actualizar iconos del dock
+                sendConfigUpdateBroadcast("UPDATE_ICONS");
+            }
+            
+            @Override
+            public void onAutoStartClick(int position) {
+                showAutoStartDialog(position);
             }
             
             @Override
@@ -247,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
                             // Verificar si es una acción del sistema
                             if (dockApp.isAction()) {
                                 // Para acciones, ir directamente a seleccionar icono
-                                SystemAction action = SystemActionHelper.getActionById(dockApp.getActionId());
+                                SystemAction action = SystemActionHelper.getActionById(dockApp.getActionId(), MainActivity.this);
                                 Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
                                 intent.putExtra("action_id", dockApp.getActionId());
                                 intent.putExtra("action_name", action != null ? action.getActionName() : dockApp.getActionId());
@@ -298,6 +321,52 @@ public class MainActivity extends AppCompatActivity {
         refreshDockAppsList();
     }
     
+    private void showAutoStartDialog(int position) {
+        try {
+            List<DockApp> dockApps = DockAppManager.getDockApps(this);
+            if (position < 0 || position >= dockApps.size()) {
+                return;
+            }
+            
+            DockApp dockApp = dockApps.get(position);
+            if (dockApp == null || dockApp.isAction()) {
+                return; // No permitir para acciones
+            }
+            
+            String packageName = dockApp.getPackageName();
+            String activityName = dockApp.getActivityName();
+            boolean isCurrentlyActive = FloatingButtonConfig.isAutoStartApp(this, packageName, activityName);
+            
+            // Crear diálogo
+            androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+            builder.setTitle(getString(R.string.auto_start_dialog_title));
+            builder.setMessage(getString(R.string.auto_start_dialog_message));
+            
+            if (isCurrentlyActive) {
+                // Si está activado, mostrar opción para desactivar
+                builder.setPositiveButton(getString(R.string.auto_start_dialog_deactivate), (dialog, which) -> {
+                    FloatingButtonConfig.clearAutoStartApp(MainActivity.this);
+                    refreshDockAppsList();
+                });
+            } else {
+                // Si no está activado, mostrar opción para activar
+                builder.setPositiveButton(getString(R.string.auto_start_dialog_activate), (dialog, which) -> {
+                    // Desactivar cualquier otra app que esté activada
+                    FloatingButtonConfig.clearAutoStartApp(MainActivity.this);
+                    // Activar esta app
+                    FloatingButtonConfig.saveAutoStartApp(MainActivity.this, packageName, activityName);
+                    refreshDockAppsList();
+                });
+            }
+            
+            builder.setNegativeButton(getString(R.string.auto_start_dialog_cancel), null);
+            builder.show();
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Error al mostrar diálogo de inicio automático", e);
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
     private List<DockApp> previousDockApps = null;
     
     private void refreshDockAppsList() {
@@ -307,8 +376,8 @@ public class MainActivity extends AppCompatActivity {
         // Detectar si hubo cambios en las apps del dock
         if (previousDockApps != null && !isInitializing) {
             if (!dockAppsEqual(previousDockApps, dockApps)) {
-                // Hubo cambios, reiniciar servicio
-                scheduleServiceRestart();
+                // Hubo cambios, actualizar iconos del dock
+                sendConfigUpdateBroadcast("UPDATE_ICONS");
             }
         }
         previousDockApps = new ArrayList<>(dockApps); // Guardar copia para comparar
@@ -392,7 +461,7 @@ public class MainActivity extends AppCompatActivity {
                     int iconSize = Integer.parseInt(value);
                     if (iconSize > 0 && iconSize <= 200) {
                         FloatingButtonConfig.saveIconSize(this, iconSize);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -409,12 +478,12 @@ public class MainActivity extends AppCompatActivity {
                 }
                 String[] positions = {
                     "top_left", "top_center", "top_right",
-                    "center_left", "center_center", "center_right",
+                    "center_left", "center_right",
                     "bottom_left", "bottom_center", "bottom_right"
                 };
                 if (position >= 0 && position < positions.length) {
                     FloatingButtonConfig.savePosition(MainActivity.this, positions[position]);
-                    scheduleServiceRestart();
+                    sendConfigUpdateBroadcast("UPDATE_POSITION");
                 }
             }
             
@@ -424,6 +493,61 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         
+        // Configurar Spinner de comportamiento del dock
+        String[] behaviors = {
+            getString(R.string.dock_behavior_hide_on_action),
+            getString(R.string.dock_behavior_hide_after_time)
+        };
+        ArrayAdapter<String> behaviorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, behaviors);
+        behaviorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        dockBehaviorSpinner.setAdapter(behaviorAdapter);
+        
+        // Listener para comportamiento del dock
+        dockBehaviorSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String[] behaviorValues = {"hide_on_action", "hide_after_time"};
+                if (position >= 0 && position < behaviorValues.length) {
+                    String selectedBehavior = behaviorValues[position];
+                    
+                    // Mostrar/ocultar el campo de timeout según el comportamiento seleccionado
+                    if ("hide_after_time".equals(selectedBehavior)) {
+                        hideTimeoutContainer.setVisibility(View.VISIBLE);
+                    } else {
+                        hideTimeoutContainer.setVisibility(View.GONE);
+                    }
+                    
+                    if (!isInitializing) {
+                        FloatingButtonConfig.saveDockBehavior(MainActivity.this, selectedBehavior);
+                        sendConfigUpdateBroadcast("UPDATE_DOCK_CONFIG");
+                    }
+                }
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // No hacer nada
+            }
+        });
+        
+        // Listener para hide timeout (en segundos)
+        hideTimeoutInput.addTextChangedListener(createTextWatcher(() -> {
+            String value = hideTimeoutInput.getText().toString();
+            if (!TextUtils.isEmpty(value)) {
+                try {
+                    int timeoutSeconds = Integer.parseInt(value);
+                    if (timeoutSeconds >= 1 && timeoutSeconds <= 60) {
+                        // Convertir segundos a milisegundos para guardar
+                        int timeoutMs = timeoutSeconds * 1000;
+                        FloatingButtonConfig.saveDockHideTimeout(MainActivity.this, timeoutMs);
+                        sendConfigUpdateBroadcast("UPDATE_DOCK_CONFIG");
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignorar valores inválidos mientras se escribe
+                }
+            }
+        }));
+        
         // Listener para border radius
         borderRadiusInput.addTextChangedListener(createTextWatcher(() -> {
             String value = borderRadiusInput.getText().toString();
@@ -432,7 +556,7 @@ public class MainActivity extends AppCompatActivity {
                     int borderRadius = Integer.parseInt(value);
                     if (borderRadius >= 0 && borderRadius <= 100) {
                         FloatingButtonConfig.saveBorderRadius(this, borderRadius);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_BACKGROUND");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -447,7 +571,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     int bgColor = Integer.parseInt(value, 16);
                     FloatingButtonConfig.saveBackgroundColor(this, bgColor);
-                    scheduleServiceRestart();
+                    sendConfigUpdateBroadcast("UPDATE_BACKGROUND");
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
                 }
@@ -462,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
                     int bgAlpha = Integer.parseInt(value);
                     if (bgAlpha >= 0 && bgAlpha <= 255) {
                         FloatingButtonConfig.saveBackgroundAlpha(this, bgAlpha);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_BACKGROUND");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -477,7 +601,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     int iconColor = Integer.parseInt(value, 16);
                     FloatingButtonConfig.saveIconColor(this, iconColor);
-                    scheduleServiceRestart();
+                    sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
                 }
@@ -492,7 +616,7 @@ public class MainActivity extends AppCompatActivity {
                     int iconAlpha = Integer.parseInt(value);
                     if (iconAlpha >= 0 && iconAlpha <= 255) {
                         FloatingButtonConfig.saveIconAlpha(this, iconAlpha);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -508,7 +632,7 @@ public class MainActivity extends AppCompatActivity {
                     int iconGap = Integer.parseInt(value);
                     if (iconGap >= 0 && iconGap <= 50) {
                         FloatingButtonConfig.saveIconGap(this, iconGap);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -524,7 +648,7 @@ public class MainActivity extends AppCompatActivity {
                     int iconPadding = Integer.parseInt(value);
                     if (iconPadding >= 0 && iconPadding <= 50) {
                         FloatingButtonConfig.saveIconPadding(this, iconPadding);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -538,9 +662,9 @@ public class MainActivity extends AppCompatActivity {
             if (!TextUtils.isEmpty(value)) {
                 try {
                     int positionMarginX = Integer.parseInt(value);
-                    if (positionMarginX >= 0 && positionMarginX <= 200) {
+                    if (positionMarginX >= -200 && positionMarginX <= 200) {
                         FloatingButtonConfig.savePositionMarginX(this, positionMarginX);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_POSITION");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
@@ -554,15 +678,25 @@ public class MainActivity extends AppCompatActivity {
             if (!TextUtils.isEmpty(value)) {
                 try {
                     int positionMarginY = Integer.parseInt(value);
-                    if (positionMarginY >= 0 && positionMarginY <= 200) {
+                    if (positionMarginY >= -200 && positionMarginY <= 200) {
                         FloatingButtonConfig.savePositionMarginY(this, positionMarginY);
-                        scheduleServiceRestart();
+                        sendConfigUpdateBroadcast("UPDATE_POSITION");
                     }
                 } catch (NumberFormatException e) {
                     // Ignorar valores inválidos mientras se escribe
                 }
             }
         }));
+        
+        // Listener para toggle draggable
+        dockDraggableSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isInitializing) {
+                return; // No hacer nada durante la inicialización
+            }
+            FloatingButtonConfig.saveDockDraggable(MainActivity.this, isChecked);
+            // Reiniciar el servicio para aplicar los cambios de draggable
+            saveAndRestartService();
+        });
     }
     
     private TextWatcher createTextWatcher(Runnable onTextChanged) {
@@ -587,10 +721,14 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void scheduleServiceRestart() {
-        // Cancelar cualquier reinicio pendiente
-        settingsUpdateHandler.removeCallbacks(settingsUpdateRunnable);
-        // Programar reinicio después de 500ms de inactividad
-        settingsUpdateHandler.postDelayed(settingsUpdateRunnable, 500);
+        // En lugar de reiniciar el servicio, enviar broadcast para actualizar en tiempo real
+        sendConfigUpdateBroadcast("UPDATE_DOCK_CONFIG");
+    }
+    
+    private void sendConfigUpdateBroadcast(String action) {
+        Intent intent = new Intent(action);
+        intent.setPackage(getPackageName());
+        sendBroadcast(intent);
     }
     
     private void saveAndRestartService() {
@@ -623,13 +761,13 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     startService(serviceIntent);
                 }
-                Toast.makeText(this, "Servicio iniciado", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.service_started), Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
                 Log.e(TAG, "Error al iniciar servicio", e);
-                Toast.makeText(this, "Error al iniciar servicio: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.service_start_error, e.getMessage()), Toast.LENGTH_SHORT).show();
             }
         } else {
-            Toast.makeText(this, "Necesitas el permiso de overlay primero", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.overlay_permission_required), Toast.LENGTH_SHORT).show();
             requestOverlayPermission();
         }
     }
@@ -637,20 +775,25 @@ public class MainActivity extends AppCompatActivity {
     private void loadCurrentSettings() {
         // Cargar tamaño de icono
         int iconSize = FloatingButtonConfig.getIconSize(this);
-        iconSizeInput.setHint("24");
+        iconSizeInput.setHint(getString(R.string.hint_icon_size));
         iconSizeInput.setText(String.valueOf(iconSize));
         
         // Cargar posición
         String position = FloatingButtonConfig.getPosition(this);
         String[] positions = {
             "top_left", "top_center", "top_right",
-            "center_left", "center_center", "center_right",
+            "center_left", "center_right",
             "bottom_left", "bottom_center", "bottom_right"
         };
         String[] positionLabels = {
-            "Superior Izquierda", "Superior Centro", "Superior Derecha",
-            "Centro Izquierda", "Centro Centro", "Centro Derecha",
-            "Inferior Izquierda", "Inferior Centro", "Inferior Derecha"
+            getString(R.string.position_top_left),
+            getString(R.string.position_top_center),
+            getString(R.string.position_top_right),
+            getString(R.string.position_center_left),
+            getString(R.string.position_center_right),
+            getString(R.string.position_bottom_left),
+            getString(R.string.position_bottom_center),
+            getString(R.string.position_bottom_right)
         };
         
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, positionLabels);
@@ -667,7 +810,7 @@ public class MainActivity extends AppCompatActivity {
         
         // Cargar border radius
         int borderRadius = FloatingButtonConfig.getBorderRadius(this);
-        borderRadiusInput.setHint("8");
+        borderRadiusInput.setHint(getString(R.string.hint_border_radius));
         borderRadiusInput.setText(String.valueOf(borderRadius));
         
         // Cargar color de fondo
@@ -676,7 +819,7 @@ public class MainActivity extends AppCompatActivity {
         
         // Cargar alpha de fondo
         int bgAlpha = FloatingButtonConfig.getBackgroundAlpha(this);
-        backgroundAlphaInput.setHint("128");
+        backgroundAlphaInput.setHint(getString(R.string.hint_alpha));
         backgroundAlphaInput.setText(String.valueOf(bgAlpha));
         
         // Cargar color de iconos
@@ -685,17 +828,17 @@ public class MainActivity extends AppCompatActivity {
         
         // Cargar alpha de iconos
         int iconAlpha = FloatingButtonConfig.getIconAlpha(this);
-        iconAlphaInput.setHint("255");
+        iconAlphaInput.setHint(getString(R.string.hint_icon_alpha));
         iconAlphaInput.setText(String.valueOf(iconAlpha));
         
         // Cargar gap de iconos
         int iconGap = FloatingButtonConfig.getIconGap(this);
-        iconGapInput.setHint("8");
+        iconGapInput.setHint(getString(R.string.hint_icon_gap));
         iconGapInput.setText(String.valueOf(iconGap));
         
         // Cargar padding de iconos
         int iconPadding = FloatingButtonConfig.getIconPadding(this);
-        iconPaddingInput.setHint("0");
+        iconPaddingInput.setHint(getString(R.string.hint_icon_padding));
         iconPaddingInput.setText(String.valueOf(iconPadding));
         
         // Cargar margen de posición
@@ -703,12 +846,45 @@ public class MainActivity extends AppCompatActivity {
         FloatingButtonConfig.migrateOldPositionMargin(this);
         
         int positionMarginX = FloatingButtonConfig.getPositionMarginX(this);
-        positionMarginXInput.setHint("16");
+        positionMarginXInput.setHint(getString(R.string.hint_margin));
         positionMarginXInput.setText(String.valueOf(positionMarginX));
         
         int positionMarginY = FloatingButtonConfig.getPositionMarginY(this);
-        positionMarginYInput.setHint("16");
+        positionMarginYInput.setHint(getString(R.string.hint_margin));
         positionMarginYInput.setText(String.valueOf(positionMarginY));
+        
+        // Cargar estado de draggable
+        boolean isDraggable = FloatingButtonConfig.isDockDraggable(this);
+        dockDraggableSwitch.setChecked(isDraggable);
+        
+        // Cargar comportamiento del dock
+        String behavior = FloatingButtonConfig.getDockBehavior(this);
+        // Si el comportamiento guardado es "fixed", migrarlo a "hide_on_action"
+        if ("fixed".equals(behavior)) {
+            behavior = "hide_on_action";
+            FloatingButtonConfig.saveDockBehavior(this, behavior);
+        }
+        String[] behaviorValues = {"hide_on_action", "hide_after_time"};
+        int behaviorIndex = 0;
+        for (int i = 0; i < behaviorValues.length; i++) {
+            if (behaviorValues[i].equals(behavior)) {
+                behaviorIndex = i;
+                break;
+            }
+        }
+        dockBehaviorSpinner.setSelection(behaviorIndex);
+        
+        // Mostrar/ocultar el campo de timeout según el comportamiento
+        if ("hide_after_time".equals(behavior)) {
+            hideTimeoutContainer.setVisibility(View.VISIBLE);
+        } else {
+            hideTimeoutContainer.setVisibility(View.GONE);
+        }
+        
+        // Cargar hide timeout (convertir de milisegundos a segundos)
+        int timeoutMs = FloatingButtonConfig.getDockHideTimeout(this);
+        int timeoutSeconds = timeoutMs / 1000;
+        hideTimeoutInput.setText(String.valueOf(timeoutSeconds));
     }
     
     private void saveSettings() {
@@ -728,7 +904,7 @@ public class MainActivity extends AppCompatActivity {
             // Guardar posición
             String[] positions = {
                 "top_left", "top_center", "top_right",
-                "center_left", "center_center", "center_right",
+                "center_left", "center_right",
                 "bottom_left", "bottom_center", "bottom_right"
             };
             int selectedPosition = positionSpinner.getSelectedItemPosition();
@@ -824,10 +1000,10 @@ public class MainActivity extends AppCompatActivity {
             String positionMarginXStr = positionMarginXInput.getText().toString();
             if (!TextUtils.isEmpty(positionMarginXStr)) {
                 int positionMarginX = Integer.parseInt(positionMarginXStr);
-                if (positionMarginX >= 0 && positionMarginX <= 200) {
+                if (positionMarginX >= -200 && positionMarginX <= 200) {
                     FloatingButtonConfig.savePositionMarginX(this, positionMarginX);
                 } else {
-                    Toast.makeText(this, "Margen X debe estar entre 0 y 200", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Margen X debe estar entre -200 y 200", Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
@@ -836,10 +1012,10 @@ public class MainActivity extends AppCompatActivity {
             String positionMarginYStr = positionMarginYInput.getText().toString();
             if (!TextUtils.isEmpty(positionMarginYStr)) {
                 int positionMarginY = Integer.parseInt(positionMarginYStr);
-                if (positionMarginY >= 0 && positionMarginY <= 200) {
+                if (positionMarginY >= -200 && positionMarginY <= 200) {
                     FloatingButtonConfig.savePositionMarginY(this, positionMarginY);
                 } else {
-                    Toast.makeText(this, "Margen Y debe estar entre 0 y 200", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Margen Y debe estar entre -200 y 200", Toast.LENGTH_SHORT).show();
                     return;
                 }
             }

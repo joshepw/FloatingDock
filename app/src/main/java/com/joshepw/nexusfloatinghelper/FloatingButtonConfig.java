@@ -16,6 +16,12 @@ public class FloatingButtonConfig {
     private static final String KEY_ICON_PADDING = "icon_padding";
     private static final String KEY_POSITION_MARGIN_X = "position_margin_x";
     private static final String KEY_POSITION_MARGIN_Y = "position_margin_y";
+    private static final String KEY_AUTO_START_PACKAGE = "auto_start_package";
+    private static final String KEY_AUTO_START_ACTIVITY = "auto_start_activity";
+    private static final String KEY_AUTO_START_LAUNCHED = "auto_start_launched"; // Flag para saber si ya se lanzó en esta sesión
+    private static final String KEY_DOCK_DRAGGABLE = "dock_draggable";
+    private static final String KEY_DOCK_BEHAVIOR = "dock_behavior"; // "fixed", "hide_on_action", "hide_after_time"
+    private static final String KEY_DOCK_HIDE_TIMEOUT = "dock_hide_timeout"; // Tiempo en ms para ocultar
     
     private static final int DEFAULT_ICON_SIZE = 24; // en dp
     private static final String DEFAULT_POSITION = "bottom_right";
@@ -46,7 +52,15 @@ public class FloatingButtonConfig {
     
     public static String getPosition(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        return prefs.getString(KEY_POSITION, DEFAULT_POSITION);
+        String position = prefs.getString(KEY_POSITION, DEFAULT_POSITION);
+        
+        // Migrar "center_center" a "center_left" si existe (posición eliminada)
+        if ("center_center".equals(position)) {
+            savePosition(context, "center_left");
+            return "center_left";
+        }
+        
+        return position;
     }
     
     public static void saveBorderRadius(Context context, int radiusDp) {
@@ -150,6 +164,105 @@ public class FloatingButtonConfig {
                 .remove("position_margin")
                 .apply();
         }
+    }
+    
+    // Auto Start App
+    public static void saveAutoStartApp(Context context, String packageName, String activityName) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit()
+            .putString(KEY_AUTO_START_PACKAGE, packageName)
+            .putString(KEY_AUTO_START_ACTIVITY, activityName)
+            .apply();
+    }
+    
+    public static void clearAutoStartApp(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit()
+            .remove(KEY_AUTO_START_PACKAGE)
+            .remove(KEY_AUTO_START_ACTIVITY)
+            .apply();
+    }
+    
+    public static String getAutoStartPackage(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_AUTO_START_PACKAGE, null);
+    }
+    
+    public static String getAutoStartActivity(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_AUTO_START_ACTIVITY, null);
+    }
+    
+    public static boolean isAutoStartApp(Context context, String packageName, String activityName) {
+        String savedPackage = getAutoStartPackage(context);
+        String savedActivity = getAutoStartActivity(context);
+        if (savedPackage == null || packageName == null) {
+            return false;
+        }
+        // Comparar package
+        if (!savedPackage.equals(packageName)) {
+            return false;
+        }
+        // Comparar activity (puede ser null)
+        // Si ambos son null, coinciden
+        if (savedActivity == null && activityName == null) {
+            return true;
+        }
+        // Si uno es null y el otro no, no coinciden
+        if (savedActivity == null || activityName == null) {
+            return false;
+        }
+        // Ambos tienen valor, comparar
+        return savedActivity.equals(activityName);
+    }
+    
+    // Flag para saber si ya se lanzó la app en esta sesión
+    public static void setAutoStartLaunched(Context context, boolean launched) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putBoolean(KEY_AUTO_START_LAUNCHED, launched).apply();
+    }
+    
+    public static boolean isAutoStartLaunched(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getBoolean(KEY_AUTO_START_LAUNCHED, false);
+    }
+    
+    // Dock Draggable
+    public static void saveDockDraggable(Context context, boolean draggable) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putBoolean(KEY_DOCK_DRAGGABLE, draggable).apply();
+    }
+    
+    public static boolean isDockDraggable(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getBoolean(KEY_DOCK_DRAGGABLE, false);
+    }
+    
+    // Dock Behavior
+    public static void saveDockBehavior(Context context, String behavior) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_DOCK_BEHAVIOR, behavior).apply();
+    }
+    
+    public static String getDockBehavior(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String behavior = prefs.getString(KEY_DOCK_BEHAVIOR, "hide_on_action");
+        // Migrar "fixed" a "hide_on_action" si existe
+        if ("fixed".equals(behavior)) {
+            behavior = "hide_on_action";
+            saveDockBehavior(context, behavior);
+        }
+        return behavior;
+    }
+    
+    public static void saveDockHideTimeout(Context context, int timeoutMs) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putInt(KEY_DOCK_HIDE_TIMEOUT, timeoutMs).apply();
+    }
+    
+    public static int getDockHideTimeout(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getInt(KEY_DOCK_HIDE_TIMEOUT, 5000); // Por defecto: 5 segundos
     }
 }
 

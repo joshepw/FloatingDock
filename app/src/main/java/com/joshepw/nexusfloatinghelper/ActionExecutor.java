@@ -58,6 +58,10 @@ public class ActionExecutor {
                 case "voice_assistant":
                     return executeVoiceAssistant(context);
                 
+                // Dock
+                case "hide_dock":
+                    return executeHideDock(context);
+                
                 default:
                     Log.w(TAG, "Acción no reconocida: " + actionId);
                     return false;
@@ -278,6 +282,20 @@ public class ActionExecutor {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error al ejecutar Voice Assistant", e);
+            return false;
+        }
+    }
+    
+    // Dock
+    private static boolean executeHideDock(Context context) {
+        try {
+            // Enviar broadcast para ocultar el dock
+            Intent intent = new Intent("HIDE_DOCK_ACTION");
+            intent.setPackage(context.getPackageName());
+            context.sendBroadcast(intent);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error al ejecutar Hide Dock", e);
             return false;
         }
     }

@@ -37,10 +37,10 @@ public class ActionSelectionAdapter extends RecyclerView.Adapter<ActionSelection
     public void filter(String query) {
         List<SystemAction> filtered = new ArrayList<>();
         if (TextUtils.isEmpty(query)) {
-            filtered.addAll(SystemActionHelper.getAllSystemActions());
+            filtered.addAll(SystemActionHelper.getAllSystemActions(context));
         } else {
             String lowerQuery = query.toLowerCase();
-            for (SystemAction action : SystemActionHelper.getAllSystemActions()) {
+            for (SystemAction action : SystemActionHelper.getAllSystemActions(context)) {
                 if (action.getActionName().toLowerCase().contains(lowerQuery) ||
                     action.getDescription().toLowerCase().contains(lowerQuery)) {
                     filtered.add(action);

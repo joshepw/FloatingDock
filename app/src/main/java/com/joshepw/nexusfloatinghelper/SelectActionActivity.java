@@ -45,7 +45,7 @@ public class SelectActionActivity extends AppCompatActivity {
             actionsRecycler.setAdapter(adapter);
             
             // Cargar todas las acciones
-            List<SystemAction> allActions = SystemActionHelper.getAllSystemActions();
+            List<SystemAction> allActions = SystemActionHelper.getAllSystemActions(this);
             adapter.updateList(allActions);
             
             // Configurar búsqueda

@@ -50,7 +50,7 @@ public class IconSelectionAdapter extends RecyclerView.Adapter<IconSelectionAdap
         
         if (NATIVE_ICON.equals(iconName)) {
             // Mostrar icono nativo del app
-            holder.iconNameText.setText("Icono nativo");
+            holder.iconNameText.setText(context.getString(R.string.icon_native_text));
             try {
                 android.content.pm.PackageManager pm = context.getPackageManager();
                 android.graphics.drawable.Drawable appIcon = pm.getApplicationIcon(packageName);
