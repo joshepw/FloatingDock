@@ -45,19 +45,12 @@ public class BackgroundService extends Service {
     private static final String CHANNEL_ID = "BackgroundServiceChannel";
     
     // Constantes configurables para el comportamiento de ocultación
-    private static final int HIDDEN_DOCK_EXPOSED_SIZE_DP = 36; // Tamaño expuesto cuando está oculto (en dp)
-    private static final int HIDDEN_DOCK_BORDER_RADIUS_DP = 18; // Border radius cuando está oculto (en dp)
-    private static final int DRAG_INDICATOR_SIZE_DP = 6; // Tamaño del indicador de drag (ancho para vertical, alto para horizontal, en dp)
-    private static final int DRAG_INDICATOR_SIZE_REDUCTION_DP = 36; // Tamaño que se resta del dock para calcular las dimensiones del indicador (en dp)
-    private static final int DRAG_INDICATOR_COLOR = 0xFFFFFFFF; // Color blanco
-    private static final int DRAG_INDICATOR_ALPHA = 180; // Alpha del indicador (0-255)
     
     private WindowManager windowManager;
     private View floatingButtonView;
     private WindowManager.LayoutParams params;
     private LinearLayout iconContainer;
-    private FrameLayout dockContainer; // Contenedor principal que envuelve iconContainer e indicador
-    private View dragIndicator; // Indicador visual cuando el dock está oculto
+    private FrameLayout dockContainer; // Contenedor principal que envuelve iconContainer
     private String hideDirection = ""; // Dirección de ocultación: "left", "right", "top", "bottom"
     
     // Variables para drag
@@ -209,9 +202,6 @@ public class BackgroundService extends Service {
             // Agregar iconContainer al dockContainer
             dockContainer.addView(iconContainer);
             
-            // Crear indicador de drag (inicialmente oculto)
-            createDragIndicator();
-            
             // Configurar parámetros de WindowManager
             params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -335,7 +325,11 @@ public class BackgroundService extends Service {
             int screenHeight = displayMetrics.heightPixels;
             
             float density = getResources().getDisplayMetrics().density;
-            int exposedSizePx = (int) (HIDDEN_DOCK_EXPOSED_SIZE_DP * density);
+            
+            // Calcular tamaño expuesto basado en el tamaño del icono (icono * 0.5)
+            int iconSizeDp = FloatingButtonConfig.getIconSize(this);
+            int exposedSizeDp = (int) (iconSizeDp * 0.5);
+            int exposedSizePx = (int) (exposedSizeDp * density);
             
             // Obtener dimensiones del dock
             // Medir el contenedor completo (dockContainer) que incluye el iconContainer
@@ -472,18 +466,14 @@ public class BackgroundService extends Service {
             // Ocultar iconos (transparencia total)
             hideIcons();
             
-            // Mostrar indicador de drag
-            showDragIndicator();
+            // Mostrar contorno blanco cuando está oculto
+            updateDockHiddenBorder(true);
             
             // Habilitar click en la parte expuesta
             enableHiddenDockClick();
             
-            // Animar border radius cuando se oculta
-            int targetRadiusPx = (int) (HIDDEN_DOCK_BORDER_RADIUS_DP * density);
-            animateBorderRadius(targetRadiusPx, () -> {
-                // Después de animar border radius, animar posición
-                animateHidePosition();
-            });
+            // Animar posición (sin cambiar border radius)
+            animateHidePosition();
             
         } catch (Exception e) {
             Log.e(TAG, "Error al ocultar dock", e);
@@ -501,20 +491,15 @@ public class BackgroundService extends Service {
             // Deshabilitar click en parte expuesta
             disableHiddenDockClick();
             
-            // Ocultar indicador de drag
-            hideDragIndicator();
+            // Ocultar contorno blanco
+            updateDockHiddenBorder(false);
             
             // Animar posición de vuelta
             animateShowPosition(() -> {
-                // Después de animar posición, restaurar border radius y mostrar iconos
-                int targetRadius = FloatingButtonConfig.getBorderRadius(this);
-                float density = getResources().getDisplayMetrics().density;
-                int targetRadiusPx = (int) (targetRadius * density);
-                animateBorderRadius(targetRadiusPx, () -> {
-                    showIcons();
-                    // Reiniciar timer si está configurado
-                    startHideTimeout();
-                });
+                // Después de animar posición, mostrar iconos (sin cambiar border radius)
+                showIcons();
+                // Reiniciar timer si está configurado
+                startHideTimeout();
             });
             
         } catch (Exception e) {
@@ -534,11 +519,8 @@ public class BackgroundService extends Service {
             // Deshabilitar click en parte expuesta
             disableHiddenDockClick();
             
-            // Ocultar indicador de drag
-            if (dragIndicator != null) {
-                dragIndicator.setVisibility(View.GONE);
-                dragIndicator.setAlpha(0f);
-            }
+            // Ocultar contorno blanco
+            updateDockHiddenBorder(false);
             
             // Restaurar posición inmediatamente (sin animación)
             params.x = originalX;
@@ -550,19 +532,7 @@ public class BackgroundService extends Service {
                 Log.e(TAG, "Error al actualizar posición durante showDockImmediately", e);
             }
             
-            // Restaurar border radius inmediatamente
-            int targetRadius = FloatingButtonConfig.getBorderRadius(this);
-            float density = getResources().getDisplayMetrics().density;
-            int targetRadiusPx = (int) (targetRadius * density);
-            
-            android.graphics.drawable.Drawable currentBackground = iconContainer.getBackground();
-            if (currentBackground instanceof GradientDrawable) {
-                GradientDrawable background = (GradientDrawable) currentBackground;
-                background.setCornerRadius(targetRadiusPx);
-                iconContainer.invalidate();
-            }
-            
-            // Mostrar iconos inmediatamente
+            // Mostrar iconos inmediatamente (sin cambiar border radius)
             showIconsImmediately();
             
         } catch (Exception e) {
@@ -1178,6 +1148,152 @@ public class BackgroundService extends Service {
         }
     }
     
+    private void updateDockHiddenBorder(boolean showBorder) {
+        if (iconContainer == null) return;
+        
+        try {
+            android.graphics.drawable.Drawable currentBackground = iconContainer.getBackground();
+            
+            if (showBorder) {
+                // Crear borde externo usando LayerDrawable
+                float density = getResources().getDisplayMetrics().density;
+                int borderWidthDp = 5;
+                int borderWidthPx = (int) (borderWidthDp * density);
+                final int targetAlpha = 150; // Alpha objetivo (0x96 = 150 en decimal)
+                
+                // Obtener el fondo original
+                GradientDrawable originalBackground = null;
+                if (currentBackground instanceof GradientDrawable) {
+                    originalBackground = (GradientDrawable) currentBackground;
+                } else if (currentBackground instanceof android.graphics.drawable.LayerDrawable) {
+                    // Si ya es un LayerDrawable, obtener la capa interna
+                    android.graphics.drawable.LayerDrawable layerDrawable = (android.graphics.drawable.LayerDrawable) currentBackground;
+                    android.graphics.drawable.Drawable innerDrawable = layerDrawable.getDrawable(1);
+                    if (innerDrawable instanceof GradientDrawable) {
+                        originalBackground = (GradientDrawable) innerDrawable;
+                    }
+                }
+                
+                if (originalBackground == null) {
+                    // Si no hay fondo original, crear uno básico
+                    originalBackground = new GradientDrawable();
+                    originalBackground.setShape(GradientDrawable.RECTANGLE);
+                    int radiusDp = FloatingButtonConfig.getBorderRadius(this);
+                    int radiusPx = (int) (radiusDp * density);
+                    originalBackground.setCornerRadius(radiusPx);
+                    int bgColor = FloatingButtonConfig.getBackgroundColor(this);
+                    int bgAlpha = FloatingButtonConfig.getBackgroundAlpha(this);
+                    int finalColor = (bgAlpha << 24) | (bgColor & 0x00FFFFFF);
+                    originalBackground.setColor(finalColor);
+                }
+                
+                // Crear capa externa con el stroke (borde blanco) - inicialmente transparente
+                final GradientDrawable strokeLayer = new GradientDrawable();
+                strokeLayer.setShape(GradientDrawable.RECTANGLE);
+                strokeLayer.setCornerRadius(originalBackground.getCornerRadius());
+                strokeLayer.setColor(0x00000000); // Transparente
+                strokeLayer.setStroke(borderWidthPx, 0x00FFFFFF); // Inicialmente transparente
+                
+                // Crear LayerDrawable con stroke externo y fondo interno
+                android.graphics.drawable.Drawable[] layers = new android.graphics.drawable.Drawable[2];
+                layers[0] = strokeLayer; // Capa externa (stroke)
+                layers[1] = originalBackground; // Capa interna (fondo)
+                
+                final android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(layers);
+                // Ajustar el inset de la capa interna para que el stroke sea externo
+                layerDrawable.setLayerInset(1, borderWidthPx, borderWidthPx, borderWidthPx, borderWidthPx);
+                
+                iconContainer.setBackground(layerDrawable);
+                
+                // Animar alpha del contorno de 0 a targetAlpha
+                ValueAnimator alphaAnimator = ValueAnimator.ofInt(0, targetAlpha);
+                alphaAnimator.setDuration(300);
+                alphaAnimator.setInterpolator(new DecelerateInterpolator());
+                alphaAnimator.addUpdateListener(animation -> {
+                    int alpha = (Integer) animation.getAnimatedValue();
+                    int whiteColor = (alpha << 24) | 0x00FFFFFF; // Blanco con alpha animado
+                    strokeLayer.setStroke(borderWidthPx, whiteColor);
+                    iconContainer.invalidate();
+                });
+                alphaAnimator.start();
+            } else {
+                // Remover borde blanco - restaurar fondo original con animación
+                GradientDrawable originalBackground = null;
+                GradientDrawable strokeLayer = null;
+                
+                if (currentBackground instanceof android.graphics.drawable.LayerDrawable) {
+                    // Si es un LayerDrawable, obtener ambas capas
+                    android.graphics.drawable.LayerDrawable layerDrawable = (android.graphics.drawable.LayerDrawable) currentBackground;
+                    android.graphics.drawable.Drawable outerDrawable = layerDrawable.getDrawable(0);
+                    android.graphics.drawable.Drawable innerDrawable = layerDrawable.getDrawable(1);
+                    if (outerDrawable instanceof GradientDrawable) {
+                        strokeLayer = (GradientDrawable) outerDrawable;
+                    }
+                    if (innerDrawable instanceof GradientDrawable) {
+                        originalBackground = (GradientDrawable) innerDrawable;
+                    }
+                } else if (currentBackground instanceof GradientDrawable) {
+                    originalBackground = (GradientDrawable) currentBackground;
+                }
+                
+                if (strokeLayer != null && originalBackground != null) {
+                    // Animar alpha del contorno de targetAlpha a 0
+                    final int currentAlpha = 150; // Alpha actual
+                    final GradientDrawable finalStrokeLayer = strokeLayer;
+                    final GradientDrawable finalOriginalBackground = originalBackground;
+                    
+                    ValueAnimator alphaAnimator = ValueAnimator.ofInt(currentAlpha, 0);
+                    alphaAnimator.setDuration(300);
+                    alphaAnimator.setInterpolator(new DecelerateInterpolator());
+                    alphaAnimator.addUpdateListener(animation -> {
+                        int alpha = (Integer) animation.getAnimatedValue();
+                        int whiteColor = (alpha << 24) | 0x00FFFFFF; // Blanco con alpha animado
+                        float density = getResources().getDisplayMetrics().density;
+                        int borderWidthPx = (int) (5 * density);
+                        finalStrokeLayer.setStroke(borderWidthPx, whiteColor);
+                        iconContainer.invalidate();
+                    });
+                    alphaAnimator.addListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            // Después de la animación, restaurar fondo original
+                            if (finalOriginalBackground != null) {
+                                // Si está en modo drag, restaurar el borde naranja
+                                if (isDragging) {
+                                    float density = getResources().getDisplayMetrics().density;
+                                    int borderWidthDp = 3;
+                                    int borderWidthPx = (int) (borderWidthDp * density);
+                                    int orangeColor = 0xFFFF9800; // Naranja en ARGB
+                                    finalOriginalBackground.setStroke(borderWidthPx, orangeColor);
+                                } else {
+                                    finalOriginalBackground.setStroke(0, 0);
+                                }
+                                iconContainer.setBackground(finalOriginalBackground);
+                                iconContainer.invalidate();
+                            }
+                        }
+                    });
+                    alphaAnimator.start();
+                } else if (originalBackground != null) {
+                    // Si no hay strokeLayer, restaurar directamente
+                    if (isDragging) {
+                        float density = getResources().getDisplayMetrics().density;
+                        int borderWidthDp = 3;
+                        int borderWidthPx = (int) (borderWidthDp * density);
+                        int orangeColor = 0xFFFF9800; // Naranja en ARGB
+                        originalBackground.setStroke(borderWidthPx, orangeColor);
+                    } else {
+                        originalBackground.setStroke(0, 0);
+                    }
+                    iconContainer.setBackground(originalBackground);
+                    iconContainer.invalidate();
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al actualizar borde del dock oculto", e);
+        }
+    }
+    
     private void createDockIcons() {
         if (iconContainer == null) return;
         
@@ -1505,7 +1621,7 @@ public class BackgroundService extends Service {
                 absoluteY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                 break;
             case "top_center":
-                absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0); // Centrado (sin margen horizontal)
                 absoluteY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                 break;
             case "top_right":
@@ -1525,7 +1641,7 @@ public class BackgroundService extends Service {
                 absoluteY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                 break;
             case "bottom_center":
-                absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                absoluteX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0); // Centrado (sin margen horizontal)
                 absoluteY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                 break;
             case "bottom_right":
@@ -1639,7 +1755,6 @@ public class BackgroundService extends Service {
                 floatingButtonView = null;
                 iconContainer = null;
                 dockContainer = null;
-                dragIndicator = null;
                 params = null;
                 Log.d(TAG, "Botón flotante removido");
             } catch (Exception e) {
@@ -1648,167 +1763,6 @@ public class BackgroundService extends Service {
         }
     }
     
-    private void createDragIndicator() {
-        if (dockContainer == null) return;
-        
-        // Crear View para el indicador
-        View indicator = new View(this);
-        
-        // Crear GradientDrawable para el fondo redondeado
-        GradientDrawable indicatorBackground = new GradientDrawable();
-        indicatorBackground.setShape(GradientDrawable.RECTANGLE);
-        
-        // Aplicar color con alpha
-        int colorWithAlpha = (DRAG_INDICATOR_ALPHA << 24) | (DRAG_INDICATOR_COLOR & 0x00FFFFFF);
-        indicatorBackground.setColor(colorWithAlpha);
-        
-        indicator.setBackground(indicatorBackground);
-        
-        // Configurar LayoutParams para FrameLayout (dimensiones iniciales, se actualizarán en showDragIndicator)
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(1, 1);
-        indicator.setLayoutParams(params);
-        
-        // Inicialmente oculto
-        indicator.setVisibility(View.GONE);
-        
-        // Agregar al contenedor
-        dockContainer.addView(indicator);
-        dragIndicator = indicator;
-    }
-    
-    private void showDragIndicator() {
-        if (dragIndicator == null || dockContainer == null || iconContainer == null || params == null) return;
-        
-        // Obtener la posición ACTUAL del dock en la pantalla (no la original guardada)
-        int currentX = params.x;
-        int currentY = params.y;
-        
-        // Calcular siempre la dirección de ocultación basada en la posición actual del dock
-        // Comparar la posición actual con la posición oculta para determinar la dirección
-        String currentHideDirection = "";
-        if (hiddenX < currentX) {
-            currentHideDirection = "left";
-        } else if (hiddenX > currentX) {
-            currentHideDirection = "right";
-        } else if (hiddenY < currentY) {
-            currentHideDirection = "top";
-        } else {
-            currentHideDirection = "bottom";
-        }
-        
-        Log.d(TAG, "showDragIndicator - Posición actual: X=" + currentX + ", Y=" + currentY);
-        Log.d(TAG, "showDragIndicator - Posición oculta: hiddenX=" + hiddenX + ", hiddenY=" + hiddenY);
-        Log.d(TAG, "showDragIndicator - Dirección calculada: " + currentHideDirection);
-        
-        float density = getResources().getDisplayMetrics().density;
-        int indicatorSizePx = (int) (DRAG_INDICATOR_SIZE_DP * density);
-        int sizeReductionPx = (int) (DRAG_INDICATOR_SIZE_REDUCTION_DP * density);
-        
-        // Obtener dimensiones actuales del dock (siempre calcular en el momento de mostrar)
-        // Forzar un layout pass para obtener dimensiones correctas
-        dockContainer.measure(
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        );
-        dockContainer.layout(0, 0, dockContainer.getMeasuredWidth(), dockContainer.getMeasuredHeight());
-        
-        iconContainer.measure(
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        );
-        iconContainer.layout(0, 0, iconContainer.getMeasuredWidth(), iconContainer.getMeasuredHeight());
-        
-        int dockWidth = iconContainer.getMeasuredWidth();
-        int dockHeight = iconContainer.getMeasuredHeight();
-        
-        // Si las dimensiones son 0, intentar obtenerlas del layout
-        if (dockWidth == 0 || dockHeight == 0) {
-            dockWidth = iconContainer.getWidth();
-            dockHeight = iconContainer.getHeight();
-        }
-        
-        // Si aún son 0, usar valores por defecto razonables
-        if (dockWidth == 0 || dockHeight == 0) {
-            dockWidth = (int) (200 * density); // Valor por defecto razonable
-            dockHeight = (int) (80 * density); // Valor por defecto razonable
-        }
-        
-        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) dragIndicator.getLayoutParams();
-        GradientDrawable indicatorBackground = (GradientDrawable) dragIndicator.getBackground();
-        
-        // Calcular el tamaño expuesto en píxeles
-        int exposedSizePx = (int) (HIDDEN_DOCK_EXPOSED_SIZE_DP * density);
-        
-        // Calcular dimensiones y posicionar según la dirección de ocultación (usando la dirección calculada)
-        switch (currentHideDirection) {
-            case "left":
-            case "right":
-                // Ocultado hacia izquierda o derecha: indicador vertical
-                params.width = indicatorSizePx;
-                params.height = dockHeight - sizeReductionPx;
-                // Border radius: mitad del ancho (para forma de píldora vertical)
-                indicatorBackground.setCornerRadius(indicatorSizePx / 2f);
-                
-                // Centrar verticalmente en el área expuesta
-                // El área expuesta está en el borde, así que centramos el indicador en esa área
-                if (currentHideDirection.equals("left")) {
-                    // Ocultado hacia la izquierda: indicador en el borde derecho
-                    params.gravity = android.view.Gravity.RIGHT | android.view.Gravity.CENTER_VERTICAL;
-                    // Centrar horizontalmente en el área expuesta (36dp desde el borde derecho)
-                    params.rightMargin = (exposedSizePx - indicatorSizePx) / 2;
-                } else {
-                    // Ocultado hacia la derecha: indicador en el borde izquierdo
-                    params.gravity = android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL;
-                    // Centrar horizontalmente en el área expuesta (36dp desde el borde izquierdo)
-                    params.leftMargin = (exposedSizePx - indicatorSizePx) / 2;
-                }
-                break;
-            case "top":
-            case "bottom":
-                // Ocultado hacia arriba o abajo: indicador horizontal
-                params.width = dockWidth - sizeReductionPx;
-                params.height = indicatorSizePx;
-                // Border radius: mitad de la altura (para forma de píldora horizontal)
-                indicatorBackground.setCornerRadius(indicatorSizePx / 2f);
-                
-                // Centrar horizontalmente en el área expuesta
-                // El área expuesta está en el borde, así que centramos el indicador en esa área
-                if (currentHideDirection.equals("top")) {
-                    // Ocultado hacia arriba: indicador en el borde inferior
-                    params.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
-                    // Centrar verticalmente en el área expuesta (36dp desde el borde inferior)
-                    params.bottomMargin = (exposedSizePx - indicatorSizePx) / 2;
-                } else {
-                    // Ocultado hacia abajo: indicador en el borde superior
-                    params.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
-                    // Centrar verticalmente en el área expuesta (36dp desde el borde superior)
-                    params.topMargin = (exposedSizePx - indicatorSizePx) / 2;
-                }
-                break;
-        }
-        
-        dragIndicator.setLayoutParams(params);
-        dragIndicator.setVisibility(View.VISIBLE);
-        dragIndicator.setAlpha(0f);
-        dragIndicator.animate()
-            .alpha(1f)
-            .setDuration(200)
-            .start();
-    }
-    
-    private void hideDragIndicator() {
-        if (dragIndicator == null) return;
-        
-        dragIndicator.animate()
-            .alpha(0f)
-            .setDuration(200)
-            .withEndAction(() -> {
-                if (dragIndicator != null) {
-                    dragIndicator.setVisibility(View.GONE);
-                }
-            })
-            .start();
-    }
     
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1982,7 +1936,7 @@ public class BackgroundService extends Service {
                     newY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                     break;
                 case "top_center":
-                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0); // Centrado (sin margen horizontal)
                     newY = marginYPx; // Margen vertical desde borde superior (puede ser negativo)
                     break;
                 case "top_right":
@@ -2002,7 +1956,7 @@ public class BackgroundService extends Service {
                     newY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                     break;
                 case "bottom_center":
-                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0) + marginXPx; // Centrado + margen X
+                    newX = (screenWidth / 2) - (dockWidth > 0 ? dockWidth / 2 : 0); // Centrado (sin margen horizontal)
                     newY = screenHeight - (dockHeight > 0 ? dockHeight : 0) - marginYPx; // Desde abajo - margen Y
                     break;
                 case "bottom_right":
