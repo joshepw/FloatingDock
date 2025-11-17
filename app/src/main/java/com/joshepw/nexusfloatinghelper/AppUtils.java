@@ -17,35 +17,35 @@ import java.util.Set;
 
 public class AppUtils {
     private static final String TAG = "AppUtils";
-    
+
     public static List<AppInfo> getAllInstalledApps(Context context) {
         List<AppInfo> apps = new ArrayList<>();
-        
+
         if (context == null) {
             Log.e(TAG, "Context es null");
             return apps;
         }
-        
+
         PackageManager pm = context.getPackageManager();
         if (pm == null) {
             Log.e(TAG, "PackageManager es null");
             return apps;
         }
-        
+
         try {
-            // Método híbrido: primero buscar apps con actividad launcher
+
             Set<String> packageNames = new HashSet<>();
-            
-            // Buscar apps con actividad launcher
+
+
             try {
                 Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
                 mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-                
+
                 int flags = PackageManager.MATCH_DISABLED_COMPONENTS;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     flags |= PackageManager.MATCH_ALL;
                 }
-                
+
                 List<ResolveInfo> launcherApps = pm.queryIntentActivities(mainIntent, flags);
                 if (launcherApps != null) {
                     for (ResolveInfo resolveInfo : launcherApps) {
@@ -57,51 +57,51 @@ public class AppUtils {
             } catch (Exception e) {
                 Log.w(TAG, "Error al obtener apps con launcher: " + e.getMessage());
             }
-            
-            // Luego obtener todas las apps instaladas
+
+
             try {
                 int appFlags = PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     appFlags |= PackageManager.MATCH_ALL;
                 }
-                
+
                 List<ApplicationInfo> allApps = pm.getInstalledApplications(appFlags);
                 if (allApps != null) {
                     for (ApplicationInfo appInfo : allApps) {
                         if (appInfo == null || appInfo.packageName == null) continue;
-                        
+
                         String packageName = appInfo.packageName;
-                        
-                        // Verificar si es lanzable
+
+
                         try {
                             boolean isLaunchable = pm.getLaunchIntentForPackage(packageName) != null;
                             if (isLaunchable) {
                                 packageNames.add(packageName);
                             }
                         } catch (Exception e) {
-                            // Si falla, agregar de todas formas
+
                             packageNames.add(packageName);
                         }
                     }
                 }
             } catch (SecurityException e) {
                 Log.e(TAG, "Error de seguridad al obtener apps instaladas. Verifica permisos: " + e.getMessage());
-                // Continuar con las apps que ya tenemos de launcher
+
             } catch (Exception e) {
                 Log.w(TAG, "Error al obtener todas las apps instaladas: " + e.getMessage());
             }
-            
-            // Crear lista de AppInfo
+
+
             for (String packageName : packageNames) {
                 if (packageName == null || packageName.isEmpty()) continue;
-                
+
                 try {
                     ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
                     if (appInfo == null) continue;
-                    
+
                     String appName = "";
                     android.graphics.drawable.Drawable icon = null;
-                    
+
                     try {
                         appName = pm.getApplicationLabel(appInfo).toString();
                         if (appName == null || appName.isEmpty()) {
@@ -110,34 +110,34 @@ public class AppUtils {
                     } catch (Exception e) {
                         appName = packageName;
                     }
-                    
+
                     try {
                         icon = pm.getApplicationIcon(appInfo);
                     } catch (Exception e) {
-                        // Usar icono por defecto si falla
+
                         icon = ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon);
                     }
-                    
+
                     boolean isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
                             && (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
-                    
+
                     boolean isLaunchable = false;
                     try {
                         isLaunchable = pm.getLaunchIntentForPackage(packageName) != null;
                     } catch (Exception e) {
-                        // Si falla, asumir que no es lanzable
+
                     }
-                    
-                    // Verificar si tiene múltiples activities (solo para apps lanzables)
+
+
                     boolean hasMultipleActivities = false;
                     if (isLaunchable) {
                         try {
                             hasMultipleActivities = ActivityUtils.hasMultipleActivities(context, packageName);
                         } catch (Exception e) {
-                            // Si falla, asumir que no tiene múltiples activities
+
                         }
                     }
-                    
+
                     apps.add(new AppInfo(packageName, appName, icon, isSystemApp, isLaunchable, hasMultipleActivities));
                 } catch (PackageManager.NameNotFoundException e) {
                     Log.w(TAG, "App no encontrada: " + packageName);
@@ -145,12 +145,12 @@ public class AppUtils {
                     Log.w(TAG, "Error al procesar app " + packageName + ": " + e.getMessage());
                 }
             }
-            
+
             Log.d(TAG, "Total apps encontradas: " + apps.size());
         } catch (Exception e) {
             Log.e(TAG, "Error general al obtener apps", e);
         }
-        
+
         return apps;
     }
 }

@@ -40,7 +40,7 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
-    
+
     private RecyclerView dockAppsRecycler;
     private DockAppAdapter dockAppAdapter;
     private EditText iconSizeInput;
@@ -62,27 +62,27 @@ public class MainActivity extends AppCompatActivity {
     private Button startServiceButton;
     private Button addAppButton;
     private Button checkUpdatesButton;
-    
+
     private ActivityResultLauncher<Intent> overlayPermissionLauncher;
     private boolean isInitializing = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Inicializar mapeo dinámico de iconos Material Symbols
+
+
         MaterialSymbolsMapper.initialize(this);
-        
+
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-        
+
         View mainView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-        
+
         initViews();
         setupOverlayPermissionLauncher();
         setupRecyclerView();
@@ -90,103 +90,103 @@ public class MainActivity extends AppCompatActivity {
         setupAutoSaveListeners();
         loadCurrentSettings();
         isInitializing = false;
-        
-        // Solicitar permiso de overlay si no lo tiene
+
+
         if (!Settings.canDrawOverlays(this)) {
             requestOverlayPermission();
         } else {
-            // Si ya tiene el permiso, iniciar el servicio automáticamente
+
             startBackgroundService();
         }
     }
-    
+
     private void initViews() {
         dockAppsRecycler = findViewById(R.id.dock_apps_recycler);
-        
-        // Encontrar EditText dentro de los layouts incluidos
+
+
         View iconSizeContainer = findViewById(R.id.icon_size_container);
         iconSizeInput = iconSizeContainer.findViewById(R.id.number_input);
-        
+
         positionSpinner = findViewById(R.id.position_spinner);
-        
+
         View borderRadiusContainer = findViewById(R.id.border_radius_container);
         borderRadiusInput = borderRadiusContainer.findViewById(R.id.number_input);
-        
+
         backgroundColorInput = findViewById(R.id.background_color_input);
-        
+
         View backgroundAlphaContainer = findViewById(R.id.background_alpha_container);
         backgroundAlphaInput = backgroundAlphaContainer.findViewById(R.id.number_input);
-        
+
         iconColorInput = findViewById(R.id.icon_color_input);
-        
+
         View iconAlphaContainer = findViewById(R.id.icon_alpha_container);
         iconAlphaInput = iconAlphaContainer.findViewById(R.id.number_input);
-        
+
         View iconGapContainer = findViewById(R.id.icon_gap_container);
         iconGapInput = iconGapContainer.findViewById(R.id.number_input);
-        
+
         View iconPaddingContainer = findViewById(R.id.icon_padding_container);
         iconPaddingInput = iconPaddingContainer.findViewById(R.id.number_input);
-        
+
         View positionMarginXContainer = findViewById(R.id.position_margin_x_container);
         positionMarginXInput = positionMarginXContainer.findViewById(R.id.number_input);
-        // Permitir números negativos para el margen X
+
         positionMarginXInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
-        
+
         View positionMarginYContainer = findViewById(R.id.position_margin_y_container);
         positionMarginYInput = positionMarginYContainer.findViewById(R.id.number_input);
-        // Permitir números negativos para el margen Y
+
         positionMarginYInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
-        
+
         dockBehaviorSpinner = findViewById(R.id.dock_behavior_spinner);
         hideTimeoutContainer = findViewById(R.id.hide_timeout_container);
         hideTimeoutInput = hideTimeoutContainer.findViewById(R.id.number_input);
         dockDraggableSwitch = findViewById(R.id.dock_draggable_switch);
-        
+
         saveButton = findViewById(R.id.save_button);
         startServiceButton = findViewById(R.id.start_service_button);
         addAppButton = findViewById(R.id.add_app_button);
         checkUpdatesButton = findViewById(R.id.check_updates_button);
-        
-        // Configurar controles de incremento/decremento
+
+
         setupNumberControls();
     }
-    
+
     private void setupNumberControls() {
-        // Tamaño de icono: 1-200
+
         setupNumberControl(R.id.icon_size_container, 1, 200);
-        
-        // Border radius: 0-100
+
+
         setupNumberControl(R.id.border_radius_container, 0, 100);
-        
-        // Alpha de fondo: 0-255
+
+
         setupNumberControl(R.id.background_alpha_container, 0, 255);
-        
-        // Alpha de iconos: 0-255
+
+
         setupNumberControl(R.id.icon_alpha_container, 0, 255);
-        
-        // Gap de iconos: 0-50
+
+
         setupNumberControl(R.id.icon_gap_container, 0, 50);
-        
-        // Padding de iconos: 0-50
+
+
         setupNumberControl(R.id.icon_padding_container, 0, 50);
-        
-        // Margen de posición X: -200 a 200 (permite valores negativos)
+
+
         setupNumberControl(R.id.position_margin_x_container, -200, 200);
-        
-        // Margen de posición Y: -200 a 200 (permite valores negativos)
+
+
         setupNumberControl(R.id.position_margin_y_container, -200, 200);
-        
-        // Hide timeout: 1-60 segundos
+
+
         setupNumberControl(R.id.hide_timeout_container_input, 1, 60);
     }
-    
+
     private void setupNumberControl(int containerId, int min, int max) {
         View container = findViewById(containerId);
         EditText input = container.findViewById(R.id.number_input);
         Button incrementBtn = container.findViewById(R.id.increment_button);
         Button decrementBtn = container.findViewById(R.id.decrement_button);
-        
+
         incrementBtn.setOnClickListener(v -> {
             try {
                 String currentValue = input.getText().toString();
@@ -202,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
                 input.setText(String.valueOf(min));
             }
         });
-        
+
         decrementBtn.setOnClickListener(v -> {
             try {
                 String currentValue = input.getText().toString();
@@ -219,7 +219,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    
+
     private void setupOverlayPermissionLauncher() {
         overlayPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -227,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
                 if (result.getResultCode() == Activity.RESULT_OK) {
                     if (Settings.canDrawOverlays(this)) {
                         Toast.makeText(this, getString(R.string.permission_granted), Toast.LENGTH_SHORT).show();
-                        // Iniciar servicio automáticamente cuando se concede el permiso
+
                         startBackgroundService();
                     } else {
                         Toast.makeText(this, getString(R.string.permission_denied), Toast.LENGTH_SHORT).show();
@@ -236,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
             }
         );
     }
-    
+
     private void requestOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {
@@ -246,40 +246,40 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-    
+
     private void setupRecyclerView() {
         dockAppAdapter = new DockAppAdapter(this, new DockAppAdapter.OnDockAppClickListener() {
             @Override
             public void onDeleteClick(int position) {
-                // Guardar la lista actual antes de eliminar para la comparación
+
                 List<DockApp> appsBeforeDelete = new ArrayList<>(DockAppManager.getDockApps(MainActivity.this));
-                
-                // Eliminar el app
+
+
                 DockAppManager.removeDockApp(MainActivity.this, position);
-                
-                // Refrescar la lista
+
+
                 refreshDockAppsList();
-                
-                // Enviar broadcast inmediatamente para actualizar el dock
+
+
                 sendConfigUpdateBroadcast("UPDATE_ICONS");
             }
-            
+
             @Override
             public void onAutoStartClick(int position) {
                 showAutoStartDialog(position);
             }
-            
+
             @Override
             public void onEditClick(int position) {
                 try {
-                    // Abrir actividad para editar (primero activity, luego icono)
+
                     List<DockApp> dockApps = DockAppManager.getDockApps(MainActivity.this);
                     if (position >= 0 && position < dockApps.size()) {
                         DockApp dockApp = dockApps.get(position);
                         if (dockApp != null) {
-                            // Verificar si es una acción del sistema
+
                             if (dockApp.isAction()) {
-                                // Para acciones, ir directamente a seleccionar icono
+
                                 SystemAction action = SystemActionHelper.getActionById(dockApp.getActionId(), MainActivity.this);
                                 Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
                                 intent.putExtra("action_id", dockApp.getActionId());
@@ -289,20 +289,20 @@ public class MainActivity extends AppCompatActivity {
                                 intent.putExtra("is_action", true);
                                 startActivity(intent);
                             } else {
-                                // Es una app normal
+
                                 String packageName = dockApp.getPackageName();
-                                
-                                // Verificar si la app tiene múltiples activities
+
+
                                 if (ActivityUtils.hasMultipleActivities(MainActivity.this, packageName)) {
-                                    // Abrir SelectActivityActivity para seleccionar activity
+
                                     Intent intent = new Intent(MainActivity.this, SelectActivityActivity.class);
                                     intent.putExtra("package_name", packageName);
                                     intent.putExtra("current_icon", dockApp.getMaterialIconName());
                                     intent.putExtra("index", position);
-                                    intent.putExtra("is_editing", true); // Indicar que estamos editando
+                                    intent.putExtra("is_editing", true); 
                                     startActivity(intent);
                                 } else {
-                                    // Si solo tiene una activity, ir directamente a seleccionar icono
+
                                     Intent intent = new Intent(MainActivity.this, SelectIconActivity.class);
                                     intent.putExtra("package_name", packageName);
                                     intent.putExtra("current_icon", dockApp.getMaterialIconName());
@@ -325,93 +325,93 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        
+
         dockAppsRecycler.setLayoutManager(new LinearLayoutManager(this));
         dockAppsRecycler.setAdapter(dockAppAdapter);
-        
-        // Configurar ItemTouchHelper para drag and drop
+
+
         ItemTouchHelper.Callback callback = new ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
-            
+
             @Override
             public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
                 int fromPosition = viewHolder.getAdapterPosition();
                 int toPosition = target.getAdapterPosition();
-                
+
                 if (fromPosition < 0 || toPosition < 0) {
                     return false;
                 }
-                
-                // Reordenar en DockAppManager
+
+
                 DockAppManager.reorderDockApps(MainActivity.this, fromPosition, toPosition);
-                
-                // Notificar al adapter del cambio
+
+
                 dockAppAdapter.notifyItemMoved(fromPosition, toPosition);
-                
-                // Actualizar la lista previa para la comparación
+
+
                 previousDockApps = new ArrayList<>(DockAppManager.getDockApps(MainActivity.this));
-                
-                // Enviar broadcast para actualizar el dock
+
+
                 sendConfigUpdateBroadcast("UPDATE_ICONS");
-                
+
                 return true;
             }
-            
+
             @Override
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
-                // No implementamos swipe, solo drag
+
             }
-            
+
             @Override
             public boolean isLongPressDragEnabled() {
-                return true; // Permitir drag con long press
+                return true; 
             }
         };
-        
+
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(callback);
         itemTouchHelper.attachToRecyclerView(dockAppsRecycler);
-        
+
         refreshDockAppsList();
     }
-    
+
     private void showAutoStartDialog(int position) {
         try {
             List<DockApp> dockApps = DockAppManager.getDockApps(this);
             if (position < 0 || position >= dockApps.size()) {
                 return;
             }
-            
+
             DockApp dockApp = dockApps.get(position);
             if (dockApp == null || dockApp.isAction()) {
-                return; // No permitir para acciones
+                return; 
             }
-            
+
             String packageName = dockApp.getPackageName();
             String activityName = dockApp.getActivityName();
             boolean isCurrentlyActive = FloatingButtonConfig.isAutoStartApp(this, packageName, activityName);
-            
-            // Crear diálogo
+
+
             androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
             builder.setTitle(getString(R.string.auto_start_dialog_title));
             builder.setMessage(getString(R.string.auto_start_dialog_message));
-            
+
             if (isCurrentlyActive) {
-                // Si está activado, mostrar opción para desactivar
+
                 builder.setPositiveButton(getString(R.string.auto_start_dialog_deactivate), (dialog, which) -> {
                     FloatingButtonConfig.clearAutoStartApp(MainActivity.this);
                     refreshDockAppsList();
                 });
             } else {
-                // Si no está activado, mostrar opción para activar
+
                 builder.setPositiveButton(getString(R.string.auto_start_dialog_activate), (dialog, which) -> {
-                    // Desactivar cualquier otra app que esté activada
+
                     FloatingButtonConfig.clearAutoStartApp(MainActivity.this);
-                    // Activar esta app
+
                     FloatingButtonConfig.saveAutoStartApp(MainActivity.this, packageName, activityName);
                     refreshDockAppsList();
                 });
             }
-            
+
             builder.setNegativeButton(getString(R.string.auto_start_dialog_cancel), null);
             builder.show();
         } catch (Exception e) {
@@ -419,46 +419,45 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.error_generic, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
-    
+
     private List<DockApp> previousDockApps = null;
-    
+
     private void refreshDockAppsList() {
         List<DockApp> dockApps = DockAppManager.getDockApps(this);
         dockAppAdapter.updateList(dockApps);
-        
-        // Detectar si hubo cambios en las apps del dock
-        // Solo comparar si ya tenemos una lista previa (no en la primera carga)
+
+
         if (previousDockApps != null) {
             if (!dockAppsEqual(previousDockApps, dockApps)) {
-                // Hubo cambios, actualizar iconos del dock
-                // Solo enviar broadcast si no estamos inicializando (para evitar broadcasts innecesarios al iniciar)
+
+
                 if (!isInitializing) {
                     sendConfigUpdateBroadcast("UPDATE_ICONS");
                 }
             }
         }
-        previousDockApps = new ArrayList<>(dockApps); // Guardar copia para comparar
+        previousDockApps = new ArrayList<>(dockApps); 
     }
-    
+
     private boolean dockAppsEqual(List<DockApp> list1, List<DockApp> list2) {
         if (list1 == null && list2 == null) return true;
         if (list1 == null || list2 == null) return false;
         if (list1.size() != list2.size()) return false;
-        
+
         for (int i = 0; i < list1.size(); i++) {
             DockApp app1 = list1.get(i);
             DockApp app2 = list2.get(i);
             if (app1 == null && app2 == null) continue;
             if (app1 == null || app2 == null) return false;
-            
-            // Comparar actionType primero
+
+
             String actionType1 = app1.getActionType();
             String actionType2 = app2.getActionType();
             if (actionType1 == null) actionType1 = "app";
             if (actionType2 == null) actionType2 = "app";
             if (!actionType1.equals(actionType2)) return false;
-            
-            // Si son acciones, comparar actionId
+
+
             if ("action".equals(actionType1)) {
                 String actionId1 = app1.getActionId();
                 String actionId2 = app2.getActionId();
@@ -466,22 +465,22 @@ public class MainActivity extends AppCompatActivity {
                 if (actionId2 == null) actionId2 = "";
                 if (!actionId1.equals(actionId2)) return false;
             } else {
-                // Si son apps, comparar package name
+
                 String packageName1 = app1.getPackageName();
                 String packageName2 = app2.getPackageName();
                 if (packageName1 == null) packageName1 = "";
                 if (packageName2 == null) packageName2 = "";
                 if (!packageName1.equals(packageName2)) return false;
-                
-                // Comparar activity name
+
+
                 String activity1 = app1.getActivityName();
                 String activity2 = app2.getActivityName();
                 if (activity1 == null) activity1 = "";
                 if (activity2 == null) activity2 = "";
                 if (!activity1.equals(activity2)) return false;
             }
-            
-            // Comparar icon name (siempre)
+
+
             String iconName1 = app1.getMaterialIconName();
             String iconName2 = app2.getMaterialIconName();
             if (iconName1 == null) iconName1 = "";
@@ -490,26 +489,26 @@ public class MainActivity extends AppCompatActivity {
         }
         return true;
     }
-    
+
     private void setupListeners() {
         addAppButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, SelectAppActivity.class);
             startActivity(intent);
         });
-        
+
         saveButton.setOnClickListener(v -> saveSettings());
-        
+
         checkUpdatesButton.setOnClickListener(v -> {
             checkForUpdates();
         });
-        
+
         startServiceButton.setOnClickListener(v -> {
             startBackgroundService();
         });
     }
-    
+
     private void setupAutoSaveListeners() {
-        // Listener para tamaño de icono
+
         iconSizeInput.addTextChangedListener(createTextWatcher(() -> {
             String value = iconSizeInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -520,17 +519,17 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para posición
+
+
         positionSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (isInitializing) {
-                    return; // No hacer nada durante la inicialización
+                    return; 
                 }
                 String[] positions = {
                     "top_left", "top_center", "top_right",
@@ -542,14 +541,14 @@ public class MainActivity extends AppCompatActivity {
                     sendConfigUpdateBroadcast("UPDATE_POSITION");
                 }
             }
-            
+
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                // No hacer nada
+
             }
         });
-        
-        // Configurar Spinner de comportamiento del dock
+
+
         String[] behaviors = {
             getString(R.string.dock_behavior_hide_on_action),
             getString(R.string.dock_behavior_hide_after_time)
@@ -557,54 +556,54 @@ public class MainActivity extends AppCompatActivity {
         ArrayAdapter<String> behaviorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, behaviors);
         behaviorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         dockBehaviorSpinner.setAdapter(behaviorAdapter);
-        
-        // Listener para comportamiento del dock
+
+
         dockBehaviorSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String[] behaviorValues = {"hide_on_action", "hide_after_time"};
                 if (position >= 0 && position < behaviorValues.length) {
                     String selectedBehavior = behaviorValues[position];
-                    
-                    // Mostrar/ocultar el campo de timeout según el comportamiento seleccionado
+
+
                     if ("hide_after_time".equals(selectedBehavior)) {
                         hideTimeoutContainer.setVisibility(View.VISIBLE);
                     } else {
                         hideTimeoutContainer.setVisibility(View.GONE);
                     }
-                    
+
                     if (!isInitializing) {
                         FloatingButtonConfig.saveDockBehavior(MainActivity.this, selectedBehavior);
                         sendConfigUpdateBroadcast("UPDATE_DOCK_CONFIG");
                     }
                 }
             }
-            
+
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                // No hacer nada
+
             }
         });
-        
-        // Listener para hide timeout (en segundos)
+
+
         hideTimeoutInput.addTextChangedListener(createTextWatcher(() -> {
             String value = hideTimeoutInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
                 try {
                     int timeoutSeconds = Integer.parseInt(value);
                     if (timeoutSeconds >= 1 && timeoutSeconds <= 60) {
-                        // Convertir segundos a milisegundos para guardar
+
                         int timeoutMs = timeoutSeconds * 1000;
                         FloatingButtonConfig.saveDockHideTimeout(MainActivity.this, timeoutMs);
                         sendConfigUpdateBroadcast("UPDATE_DOCK_CONFIG");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para border radius
+
+
         borderRadiusInput.addTextChangedListener(createTextWatcher(() -> {
             String value = borderRadiusInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -615,12 +614,12 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_BACKGROUND");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para color de fondo
+
+
         backgroundColorInput.addTextChangedListener(createTextWatcher(() -> {
             String value = backgroundColorInput.getText().toString();
             if (!TextUtils.isEmpty(value) && value.length() == 6) {
@@ -629,12 +628,12 @@ public class MainActivity extends AppCompatActivity {
                     FloatingButtonConfig.saveBackgroundColor(this, bgColor);
                     sendConfigUpdateBroadcast("UPDATE_BACKGROUND");
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para alpha de fondo
+
+
         backgroundAlphaInput.addTextChangedListener(createTextWatcher(() -> {
             String value = backgroundAlphaInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -645,12 +644,12 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_BACKGROUND");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para color de iconos
+
+
         iconColorInput.addTextChangedListener(createTextWatcher(() -> {
             String value = iconColorInput.getText().toString();
             if (!TextUtils.isEmpty(value) && value.length() == 6) {
@@ -659,12 +658,12 @@ public class MainActivity extends AppCompatActivity {
                     FloatingButtonConfig.saveIconColor(this, iconColor);
                     sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para alpha de iconos
+
+
         iconAlphaInput.addTextChangedListener(createTextWatcher(() -> {
             String value = iconAlphaInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -675,12 +674,12 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para gap de iconos
+
+
         iconGapInput.addTextChangedListener(createTextWatcher(() -> {
             String value = iconGapInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -691,12 +690,12 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para padding de iconos
+
+
         iconPaddingInput.addTextChangedListener(createTextWatcher(() -> {
             String value = iconPaddingInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -707,12 +706,12 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_ICON_SIZE");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para margen de posición X
+
+
         positionMarginXInput.addTextChangedListener(createTextWatcher(() -> {
             String value = positionMarginXInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -723,12 +722,12 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_POSITION");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para margen de posición Y
+
+
         positionMarginYInput.addTextChangedListener(createTextWatcher(() -> {
             String value = positionMarginYInput.getText().toString();
             if (!TextUtils.isEmpty(value)) {
@@ -739,34 +738,34 @@ public class MainActivity extends AppCompatActivity {
                         sendConfigUpdateBroadcast("UPDATE_POSITION");
                     }
                 } catch (NumberFormatException e) {
-                    // Ignorar valores inválidos mientras se escribe
+
                 }
             }
         }));
-        
-        // Listener para toggle draggable
+
+
         dockDraggableSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isInitializing) {
-                return; // No hacer nada durante la inicialización
+                return; 
             }
             FloatingButtonConfig.saveDockDraggable(MainActivity.this, isChecked);
-            // Reiniciar el servicio para aplicar los cambios de draggable
+
             saveAndRestartService();
         });
     }
-    
+
     private TextWatcher createTextWatcher(Runnable onTextChanged) {
         return new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                // No hacer nada
+
             }
-            
+
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                // No hacer nada
+
             }
-            
+
             @Override
             public void afterTextChanged(Editable s) {
                 if (!isInitializing) {
@@ -775,22 +774,22 @@ public class MainActivity extends AppCompatActivity {
             }
         };
     }
-    
+
     private void sendConfigUpdateBroadcast(String action) {
         Intent intent = new Intent(action);
         intent.setPackage(getPackageName());
         sendBroadcast(intent);
     }
-    
+
     private void saveAndRestartService() {
         if (!Settings.canDrawOverlays(this)) {
             return;
         }
-        
+
         try {
             Intent serviceIntent = new Intent(this, BackgroundService.class);
             stopService(serviceIntent);
-            // Esperar un momento antes de reiniciar para asegurar que se detuvo
+
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(serviceIntent);
@@ -802,7 +801,7 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Error al reiniciar servicio", e);
         }
     }
-    
+
     private void startBackgroundService() {
         if (Settings.canDrawOverlays(this)) {
             try {
@@ -822,14 +821,14 @@ public class MainActivity extends AppCompatActivity {
             requestOverlayPermission();
         }
     }
-    
+
     private void loadCurrentSettings() {
-        // Cargar tamaño de icono
+
         int iconSize = FloatingButtonConfig.getIconSize(this);
         iconSizeInput.setHint(getString(R.string.hint_icon_size));
         iconSizeInput.setText(String.valueOf(iconSize));
-        
-        // Cargar posición
+
+
         String position = FloatingButtonConfig.getPosition(this);
         String[] positions = {
             "top_left", "top_center", "top_right",
@@ -846,71 +845,70 @@ public class MainActivity extends AppCompatActivity {
             getString(R.string.position_bottom_center),
             getString(R.string.position_bottom_right)
         };
-        
+
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, positionLabels);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         positionSpinner.setAdapter(adapter);
-        
-        // Seleccionar posición actual
+
+
         for (int i = 0; i < positions.length; i++) {
             if (positions[i].equals(position)) {
                 positionSpinner.setSelection(i);
                 break;
             }
         }
-        
-        // Cargar border radius
+
+
         int borderRadius = FloatingButtonConfig.getBorderRadius(this);
         borderRadiusInput.setHint(getString(R.string.hint_border_radius));
         borderRadiusInput.setText(String.valueOf(borderRadius));
-        
-        // Cargar color de fondo
+
+
         int bgColor = FloatingButtonConfig.getBackgroundColor(this);
         backgroundColorInput.setText(String.format("%06X", bgColor & 0x00FFFFFF));
-        
-        // Cargar alpha de fondo
+
+
         int bgAlpha = FloatingButtonConfig.getBackgroundAlpha(this);
         backgroundAlphaInput.setHint(getString(R.string.hint_alpha));
         backgroundAlphaInput.setText(String.valueOf(bgAlpha));
-        
-        // Cargar color de iconos
+
+
         int iconColor = FloatingButtonConfig.getIconColor(this);
         iconColorInput.setText(String.format("%06X", iconColor & 0x00FFFFFF));
-        
-        // Cargar alpha de iconos
+
+
         int iconAlpha = FloatingButtonConfig.getIconAlpha(this);
         iconAlphaInput.setHint(getString(R.string.hint_icon_alpha));
         iconAlphaInput.setText(String.valueOf(iconAlpha));
-        
-        // Cargar gap de iconos
+
+
         int iconGap = FloatingButtonConfig.getIconGap(this);
         iconGapInput.setHint(getString(R.string.hint_icon_gap));
         iconGapInput.setText(String.valueOf(iconGap));
-        
-        // Cargar padding de iconos
+
+
         int iconPadding = FloatingButtonConfig.getIconPadding(this);
         iconPaddingInput.setHint(getString(R.string.hint_icon_padding));
         iconPaddingInput.setText(String.valueOf(iconPadding));
-        
-        // Cargar margen de posición
-        // Migrar valor antiguo si existe
+
+
         FloatingButtonConfig.migrateOldPositionMargin(this);
-        
+
         int positionMarginX = FloatingButtonConfig.getPositionMarginX(this);
         positionMarginXInput.setHint(getString(R.string.hint_margin));
         positionMarginXInput.setText(String.valueOf(positionMarginX));
-        
+
         int positionMarginY = FloatingButtonConfig.getPositionMarginY(this);
         positionMarginYInput.setHint(getString(R.string.hint_margin));
         positionMarginYInput.setText(String.valueOf(positionMarginY));
-        
-        // Cargar estado de draggable
+
+
         boolean isDraggable = FloatingButtonConfig.isDockDraggable(this);
         dockDraggableSwitch.setChecked(isDraggable);
-        
-        // Cargar comportamiento del dock
+
+
         String behavior = FloatingButtonConfig.getDockBehavior(this);
-        // Si el comportamiento guardado es "fixed", migrarlo a "hide_on_action"
+
         if ("fixed".equals(behavior)) {
             behavior = "hide_on_action";
             FloatingButtonConfig.saveDockBehavior(this, behavior);
@@ -924,23 +922,23 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         dockBehaviorSpinner.setSelection(behaviorIndex);
-        
-        // Mostrar/ocultar el campo de timeout según el comportamiento
+
+
         if ("hide_after_time".equals(behavior)) {
             hideTimeoutContainer.setVisibility(View.VISIBLE);
         } else {
             hideTimeoutContainer.setVisibility(View.GONE);
         }
-        
-        // Cargar hide timeout (convertir de milisegundos a segundos)
+
+
         int timeoutMs = FloatingButtonConfig.getDockHideTimeout(this);
         int timeoutSeconds = timeoutMs / 1000;
         hideTimeoutInput.setText(String.valueOf(timeoutSeconds));
     }
-    
+
     private void saveSettings() {
         try {
-            // Validar y guardar tamaño de icono
+
             String iconSizeStr = iconSizeInput.getText().toString();
             if (!TextUtils.isEmpty(iconSizeStr)) {
                 int iconSize = Integer.parseInt(iconSizeStr);
@@ -951,8 +949,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Guardar posición
+
+
             String[] positions = {
                 "top_left", "top_center", "top_right",
                 "center_left", "center_right",
@@ -962,8 +960,8 @@ public class MainActivity extends AppCompatActivity {
             if (selectedPosition >= 0 && selectedPosition < positions.length) {
                 FloatingButtonConfig.savePosition(this, positions[selectedPosition]);
             }
-            
-            // Validar y guardar border radius
+
+
             String borderRadiusStr = borderRadiusInput.getText().toString();
             if (!TextUtils.isEmpty(borderRadiusStr)) {
                 int borderRadius = Integer.parseInt(borderRadiusStr);
@@ -974,8 +972,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar color de fondo
+
+
             String bgColorStr = backgroundColorInput.getText().toString();
             if (!TextUtils.isEmpty(bgColorStr)) {
                 try {
@@ -986,8 +984,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar alpha de fondo
+
+
             String bgAlphaStr = backgroundAlphaInput.getText().toString();
             if (!TextUtils.isEmpty(bgAlphaStr)) {
                 int bgAlpha = Integer.parseInt(bgAlphaStr);
@@ -998,8 +996,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar color de iconos
+
+
             String iconColorStr = iconColorInput.getText().toString();
             if (!TextUtils.isEmpty(iconColorStr)) {
                 try {
@@ -1010,8 +1008,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar alpha de iconos
+
+
             String iconAlphaStr = iconAlphaInput.getText().toString();
             if (!TextUtils.isEmpty(iconAlphaStr)) {
                 int iconAlpha = Integer.parseInt(iconAlphaStr);
@@ -1022,8 +1020,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar gap de iconos
+
+
             String iconGapStr = iconGapInput.getText().toString();
             if (!TextUtils.isEmpty(iconGapStr)) {
                 int iconGap = Integer.parseInt(iconGapStr);
@@ -1034,8 +1032,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar padding de iconos
+
+
             String iconPaddingStr = iconPaddingInput.getText().toString();
             if (!TextUtils.isEmpty(iconPaddingStr)) {
                 int iconPadding = Integer.parseInt(iconPaddingStr);
@@ -1046,8 +1044,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar margen de posición X
+
+
             String positionMarginXStr = positionMarginXInput.getText().toString();
             if (!TextUtils.isEmpty(positionMarginXStr)) {
                 int positionMarginX = Integer.parseInt(positionMarginXStr);
@@ -1058,8 +1056,8 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
-            // Validar y guardar margen de posición Y
+
+
             String positionMarginYStr = positionMarginYInput.getText().toString();
             if (!TextUtils.isEmpty(positionMarginYStr)) {
                 int positionMarginY = Integer.parseInt(positionMarginYStr);
@@ -1070,15 +1068,15 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
             }
-            
+
             Toast.makeText(this, getString(R.string.config_saved), Toast.LENGTH_SHORT).show();
-            
-            // Reiniciar servicio para aplicar cambios
+
+
             if (Settings.canDrawOverlays(this)) {
                 try {
                     Intent serviceIntent = new Intent(this, BackgroundService.class);
                     stopService(serviceIntent);
-                    // Esperar un momento antes de reiniciar para asegurar que se detuvo
+
                     new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             startForegroundService(serviceIntent);
@@ -1095,54 +1093,53 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.error_saving, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
-    
+
     @Override
     protected void onResume() {
         super.onResume();
-        // Refrescar lista y detectar cambios (que reiniciará el servicio si es necesario)
+
         refreshDockAppsList();
     }
-    
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        // Refrescar lista cuando se vuelve de agregar/editar
-        // Actualizar la lista previa antes de refrescar para que la comparación funcione
-        // (aunque SelectIconActivity ya envía el broadcast, esto asegura que MainActivity también esté actualizado)
+
+
         List<DockApp> currentApps = DockAppManager.getDockApps(this);
         if (previousDockApps != null && !dockAppsEqual(previousDockApps, currentApps)) {
-            // Hubo cambios, actualizar la lista previa y enviar broadcast
+
             previousDockApps = new ArrayList<>(currentApps);
             refreshDockAppsList();
-            // Asegurar que se envía el broadcast (por si acaso no se envió desde SelectIconActivity)
+
             sendConfigUpdateBroadcast("UPDATE_ICONS");
         } else {
-            // Solo refrescar la lista si no hubo cambios detectados
+
             refreshDockAppsList();
         }
     }
-    
+
     private void checkForUpdates() {
         try {
-            // Mostrar mensaje de verificación
+
             Toast.makeText(this, getString(R.string.update_checking), Toast.LENGTH_SHORT).show();
-            
-            // Obtener versión actual
+
+
             PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
             final String currentVersion = packageInfo.versionName;
-            
-            // Verificar actualizaciones
+
+
             UpdateChecker.checkForUpdates(this, new UpdateChecker.UpdateCheckCallback() {
                 @Override
                 public void onUpdateAvailable(UpdateChecker.UpdateInfo updateInfo) {
                     showUpdateDialog(updateInfo, currentVersion);
                 }
-                
+
                 @Override
                 public void onNoUpdateAvailable() {
                     Toast.makeText(MainActivity.this, getString(R.string.update_no_update), Toast.LENGTH_SHORT).show();
                 }
-                
+
                 @Override
                 public void onError(String error) {
                     Toast.makeText(MainActivity.this, getString(R.string.update_check_error, error), Toast.LENGTH_LONG).show();
@@ -1153,24 +1150,24 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.update_check_error, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
-    
+
     private void showUpdateDialog(UpdateChecker.UpdateInfo updateInfo, String currentVersion) {
         try {
             androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
             builder.setTitle(getString(R.string.update_available_title));
             builder.setMessage(getString(R.string.update_available_message, updateInfo.getVersionName(), currentVersion));
-            
+
             builder.setPositiveButton(getString(R.string.update_download), (dialog, which) -> {
-                // Descargar actualización
+
                 UpdateChecker.downloadUpdate(MainActivity.this, updateInfo.getDownloadUrl(), updateInfo.getVersionName());
                 Toast.makeText(MainActivity.this, getString(R.string.downloading_update_title, updateInfo.getVersionName()), Toast.LENGTH_LONG).show();
             });
-            
+
             builder.setNeutralButton(getString(R.string.update_open_github), (dialog, which) -> {
-                // Abrir GitHub releases
+
                 UpdateChecker.openGitHubReleases(MainActivity.this);
             });
-            
+
             builder.setNegativeButton(getString(R.string.update_later), null);
             builder.show();
         } catch (Exception e) {

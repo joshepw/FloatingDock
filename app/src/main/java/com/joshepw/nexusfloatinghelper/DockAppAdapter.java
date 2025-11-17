@@ -19,39 +19,39 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
     private List<DockApp> dockApps;
     private Context context;
     private OnDockAppClickListener listener;
-    
+
     public interface OnDockAppClickListener {
         void onDeleteClick(int position);
         void onEditClick(int position);
         void onAutoStartClick(int position);
     }
-    
+
     public DockAppAdapter(Context context, OnDockAppClickListener listener) {
         this.context = context;
         this.listener = listener;
         this.dockApps = new ArrayList<>();
     }
-    
+
     public void updateList(List<DockApp> newList) {
         this.dockApps = newList != null ? newList : new ArrayList<>();
         notifyDataSetChanged();
     }
-    
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.item_dock_app, parent, false);
         return new ViewHolder(view);
     }
-    
+
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         DockApp dockApp = dockApps.get(position);
-        
-        // Mostrar información según si es app o acción
+
+
         String displayText;
         if (dockApp.isAction()) {
-            // Es una acción del sistema
+
             SystemAction action = SystemActionHelper.getActionById(dockApp.getActionId(), context);
             if (action != null) {
                 displayText = action.getActionName();
@@ -59,11 +59,11 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
                 displayText = context.getString(R.string.action_prefix, dockApp.getActionId());
             }
         } else {
-            // Es una app normal
+
             displayText = dockApp.getPackageName();
             if (dockApp.getActivityName() != null && !dockApp.getActivityName().isEmpty()) {
                 String activityShortName = dockApp.getActivityName();
-                // Extraer solo el nombre de la clase sin el package completo
+
                 if (activityShortName.contains(".")) {
                     activityShortName = activityShortName.substring(activityShortName.lastIndexOf('.') + 1);
                 }
@@ -71,15 +71,15 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
             }
         }
         holder.packageNameText.setText(displayText);
-        
+
         String iconName = dockApp.getMaterialIconName();
-        
-        // Verificar si es icono nativo o Material
+
+
         if ("native".equals(iconName)) {
-            // Mostrar icono nativo del app (solo para apps, no para acciones)
+
             holder.iconNameText.setText(context.getString(R.string.icon_native));
             if (dockApp.isAction()) {
-                // Para acciones, usar icono por defecto
+
                 holder.iconView.setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon));
                 holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
             } else {
@@ -89,31 +89,31 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
                     holder.iconView.setImageDrawable(appIcon);
                     holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 } catch (Exception e) {
-                    // Si falla, usar icono por defecto
+
                     holder.iconView.setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.sym_def_app_icon));
                     holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 }
             }
         } else {
-            // Mostrar icono Material de la app
+
             holder.iconNameText.setText(context.getString(R.string.icon_format, iconName));
             MaterialIconDrawable iconDrawable = new MaterialIconDrawable(context);
             iconDrawable.setIcon(iconName);
             iconDrawable.setSize(48);
-            iconDrawable.setColor(0xFF000000); // Negro para la lista
+            iconDrawable.setColor(0xFF000000); 
             iconDrawable.setBounds(0, 0, 48, 48);
             holder.iconView.setImageDrawable(iconDrawable);
             holder.iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
         }
-        
-        // Icono de inicio automático (solo para apps, no para acciones)
+
+
         if (!dockApp.isAction()) {
             boolean isAutoStart = FloatingButtonConfig.isAutoStartApp(context, 
                 dockApp.getPackageName(), dockApp.getActivityName());
             MaterialIconDrawable autoStartIcon = new MaterialIconDrawable(context);
-            autoStartIcon.setIcon("rocket_launch"); // Icono de cohete, representativo de startup
+            autoStartIcon.setIcon("rocket_launch"); 
             autoStartIcon.setSize(24);
-            // Color verde si está activado, gris si no
+
             int autoStartColor = isAutoStart ? 
                 ContextCompat.getColor(context, android.R.color.holo_green_dark) :
                 ContextCompat.getColor(context, android.R.color.darker_gray);
@@ -128,11 +128,11 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
                 }
             });
         } else {
-            // Ocultar botón para acciones del sistema
+
             holder.autoStartButton.setVisibility(View.GONE);
         }
-        
-        // Icono de editar
+
+
         MaterialIconDrawable editIcon = new MaterialIconDrawable(context);
         editIcon.setIcon("edit");
         editIcon.setSize(24);
@@ -145,8 +145,8 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
                 listener.onEditClick(position);
             }
         });
-        
-        // Icono de eliminar
+
+
         MaterialIconDrawable deleteIcon = new MaterialIconDrawable(context);
         deleteIcon.setIcon("delete");
         deleteIcon.setSize(24);
@@ -160,12 +160,12 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
             }
         });
     }
-    
+
     @Override
     public int getItemCount() {
         return dockApps.size();
     }
-    
+
     class ViewHolder extends RecyclerView.ViewHolder {
         ImageView iconView;
         TextView packageNameText;
@@ -174,7 +174,7 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
         ImageView editButton;
         ImageView autoStartButton;
         ImageView dragHandle;
-        
+
         ViewHolder(View itemView) {
             super(itemView);
             iconView = itemView.findViewById(R.id.dock_app_icon);
@@ -184,8 +184,8 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
             editButton = itemView.findViewById(R.id.edit_icon_button);
             autoStartButton = itemView.findViewById(R.id.auto_start_button);
             dragHandle = itemView.findViewById(R.id.drag_handle);
-            
-            // Configurar icono de drag handle
+
+
             if (dragHandle != null) {
                 MaterialIconDrawable dragIcon = new MaterialIconDrawable(context);
                 dragIcon.setIcon("drag_handle");

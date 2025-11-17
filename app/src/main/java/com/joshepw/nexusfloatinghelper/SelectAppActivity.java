@@ -20,37 +20,37 @@ public class SelectAppActivity extends AppCompatActivity {
     private AppSelectionAdapter adapter;
     private EditText searchInput;
     private List<AppInfo> allApps;
-    
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_select_app);
-        
+
         try {
             appsRecycler = findViewById(R.id.apps_recycler);
             searchInput = findViewById(R.id.search_input);
-            
-            // Obtener apps con manejo de errores
+
+
             allApps = AppUtils.getAllInstalledApps(this);
             if (allApps == null) {
                 allApps = new ArrayList<>();
             }
-            
+
             adapter = new AppSelectionAdapter(this, new AppSelectionAdapter.OnAppClickListener() {
                 @Override
                 public void onAppClick(AppInfo appInfo) {
                     try {
                         String packageName = appInfo.getPackageName();
-                        
-                        // Verificar si la app tiene múltiples activities
+
+
                         if (ActivityUtils.hasMultipleActivities(SelectAppActivity.this, packageName)) {
-                            // Abrir Activity para seleccionar activity
+
                             Intent intent = new Intent(SelectAppActivity.this, SelectActivityActivity.class);
                             intent.putExtra("package_name", packageName);
                             startActivity(intent);
                             finish();
                         } else {
-                            // Ir directamente a seleccionar icono
+
                             Intent intent = new Intent(SelectAppActivity.this, SelectIconActivity.class);
                             intent.putExtra("package_name", packageName);
                             startActivity(intent);
@@ -61,36 +61,36 @@ public class SelectAppActivity extends AppCompatActivity {
                         Toast.makeText(SelectAppActivity.this, getString(R.string.error_opening_icon_selection), Toast.LENGTH_SHORT).show();
                     }
                 }
-                
+
                 @Override
                 public void onManualEntryClick() {
                     showManualEntryDialog();
                 }
-                
+
                 @Override
                 public void onAddActionClick() {
-                    // Abrir Activity para seleccionar acción del sistema
+
                     Intent intent = new Intent(SelectAppActivity.this, SelectActionActivity.class);
                     startActivity(intent);
                     finish();
                 }
             });
-            
+
             appsRecycler.setLayoutManager(new LinearLayoutManager(this));
             appsRecycler.setAdapter(adapter);
-            
-            // Aplicar filtros después de configurar el adapter
+
+
             applyFilters("");
-            
+
             searchInput.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-                
+
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
                     applyFilters(s.toString());
                 }
-                
+
                 @Override
                 public void afterTextChanged(Editable s) {}
             });
@@ -100,26 +100,26 @@ public class SelectAppActivity extends AppCompatActivity {
             finish();
         }
     }
-    
+
     private void applyFilters(String query) {
         try {
             if (allApps == null) {
                 allApps = new ArrayList<>();
             }
-            
+
             List<AppInfo> filteredApps = new ArrayList<>();
             List<AppInfo> launchableApps = new ArrayList<>();
             List<AppInfo> nonLaunchableApps = new ArrayList<>();
-            
+
             String lowerQuery = query != null ? query.toLowerCase() : "";
-            
+
             for (AppInfo app : allApps) {
                 if (app == null) continue;
-                
+
                 try {
                     String appName = app.getAppName() != null ? app.getAppName() : "";
                     String packageName = app.getPackageName() != null ? app.getPackageName() : "";
-                    
+
                     if (query == null || query.isEmpty() || 
                         appName.toLowerCase().contains(lowerQuery) ||
                         packageName.toLowerCase().contains(lowerQuery)) {
@@ -133,14 +133,14 @@ public class SelectAppActivity extends AppCompatActivity {
                     android.util.Log.w("SelectAppActivity", "Error al procesar app: " + e.getMessage());
                 }
             }
-            
+
             filteredApps.addAll(launchableApps);
             filteredApps.addAll(nonLaunchableApps);
-            
+
             if (adapter != null) {
                 adapter.updateList(filteredApps);
-                
-                // Configurar separador
+
+
                 if (!nonLaunchableApps.isEmpty() && !launchableApps.isEmpty()) {
                     adapter.setSeparatorPosition(launchableApps.size());
                 } else {
@@ -151,17 +151,17 @@ public class SelectAppActivity extends AppCompatActivity {
             android.util.Log.e("SelectAppActivity", "Error en applyFilters", e);
         }
     }
-    
+
     private void showManualEntryDialog() {
         try {
-            // Crear EditText con mejor estilo
+
             EditText input = new EditText(this);
             input.setHint(getString(R.string.hint_package_name));
             input.setPadding(32, 32, 32, 32);
             input.setSingleLine(true);
             input.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
-            
-            // Crear diálogo con estilo Material
+
+
             new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(getString(R.string.manual_entry_title))
                 .setMessage(getString(R.string.manual_entry_message))
@@ -193,7 +193,7 @@ public class SelectAppActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.error_showing_dialog, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
-    
+
     private boolean validatePackageName(String packageName) {
         try {
             PackageManager pm = getPackageManager();
@@ -203,6 +203,6 @@ public class SelectAppActivity extends AppCompatActivity {
             return false;
         }
     }
-    
+
 }
 

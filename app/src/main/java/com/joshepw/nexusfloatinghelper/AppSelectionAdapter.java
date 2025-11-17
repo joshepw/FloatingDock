@@ -20,33 +20,33 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     private static final int TYPE_ADD_ACTION = 1;
     private static final int TYPE_SEPARATOR = 2;
     private static final int TYPE_APP = 3;
-    
+
     private List<AppInfo> apps;
     private Context context;
     private OnAppClickListener listener;
     private int separatorPosition = -1;
-    
+
     public interface OnAppClickListener {
         void onAppClick(AppInfo appInfo);
         void onManualEntryClick();
         void onAddActionClick();
     }
-    
+
     public AppSelectionAdapter(Context context, OnAppClickListener listener) {
         this.context = context;
         this.listener = listener;
         this.apps = new ArrayList<>();
     }
-    
+
     public void updateList(List<AppInfo> newList) {
         this.apps = newList != null ? new ArrayList<>(newList) : new ArrayList<>();
         notifyDataSetChanged();
     }
-    
+
     public void setSeparatorPosition(int position) {
         this.separatorPosition = position;
     }
-    
+
     @Override
     public int getItemViewType(int position) {
         if (position == 0) {
@@ -55,13 +55,13 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         if (position == 1) {
             return TYPE_ADD_ACTION;
         }
-        // Ajustar posición del separador considerando manual entry y add action
+
         if (separatorPosition > 0 && position == separatorPosition + 2) {
             return TYPE_SEPARATOR;
         }
         return TYPE_APP;
     }
-    
+
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -80,7 +80,7 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
             return new AppViewHolder(view);
         }
     }
-    
+
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         if (holder instanceof ManualEntryViewHolder) {
@@ -96,54 +96,54 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                 }
             });
         } else if (holder instanceof SeparatorViewHolder) {
-            // Separador, no necesita binding
+
         } else if (holder instanceof AppViewHolder) {
-            int appPosition = position - 2; // Restar manual entry y add action
+            int appPosition = position - 2; 
             if (separatorPosition > 0 && position > separatorPosition + 2) {
-                appPosition--; // Restar separator
+                appPosition--; 
             }
-            
+
             if (appPosition >= 0 && appPosition < apps.size()) {
                 AppInfo appInfo = apps.get(appPosition);
                 ((AppViewHolder) holder).bind(appInfo);
             }
         }
     }
-    
+
     @Override
     public int getItemCount() {
-        int count = 2; // Manual entry + Add action
+        int count = 2; 
         if (separatorPosition > 0) {
-            count++; // Separator
+            count++; 
         }
-        count += apps.size(); // Apps
+        count += apps.size(); 
         return count;
     }
-    
+
     static class ManualEntryViewHolder extends RecyclerView.ViewHolder {
         ManualEntryViewHolder(View itemView) {
             super(itemView);
         }
     }
-    
+
     static class AddActionViewHolder extends RecyclerView.ViewHolder {
         AddActionViewHolder(View itemView) {
             super(itemView);
         }
     }
-    
+
     static class SeparatorViewHolder extends RecyclerView.ViewHolder {
         SeparatorViewHolder(View itemView) {
             super(itemView);
         }
     }
-    
+
     class AppViewHolder extends RecyclerView.ViewHolder {
         ImageView iconView;
         TextView nameText;
         TextView packageText;
         ImageView multipleActivitiesIndicator;
-        
+
         AppViewHolder(View itemView) {
             super(itemView);
             iconView = itemView.findViewById(R.id.app_icon);
@@ -151,16 +151,16 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
             packageText = itemView.findViewById(R.id.app_package);
             multipleActivitiesIndicator = itemView.findViewById(R.id.multiple_activities_indicator);
         }
-        
+
         void bind(AppInfo appInfo) {
             if (appInfo == null) {
                 return;
             }
-            
+
             try {
                 String appName = appInfo.getAppName();
                 String packageName = appInfo.getPackageName();
-                
+
                 if (nameText != null) {
                     nameText.setText(appName != null ? appName : "");
                 }
@@ -174,12 +174,12 @@ public class AppSelectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                     }
                     iconView.setImageDrawable(icon);
                 }
-                
-                // Ocultar indicador de múltiples activities (ya no se muestra)
+
+
                 if (multipleActivitiesIndicator != null) {
                     multipleActivitiesIndicator.setVisibility(View.GONE);
                 }
-                
+
                 itemView.setOnClickListener(v -> {
                     if (listener != null && appInfo != null) {
                         listener.onAppClick(appInfo);
