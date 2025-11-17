@@ -51,5 +51,23 @@ public class DockAppManager {
             saveDockApps(context, apps);
         }
     }
+    
+    public static void reorderDockApps(Context context, int fromPosition, int toPosition) {
+        List<DockApp> apps = getDockApps(context);
+        if (fromPosition >= 0 && fromPosition < apps.size() && 
+            toPosition >= 0 && toPosition < apps.size() && 
+            fromPosition != toPosition) {
+            
+            DockApp movedApp = apps.remove(fromPosition);
+            apps.add(toPosition, movedApp);
+            
+            // Actualizar los índices de todos los apps
+            for (int i = 0; i < apps.size(); i++) {
+                apps.get(i).setIndex(i);
+            }
+            
+            saveDockApps(context, apps);
+        }
+    }
 }
 

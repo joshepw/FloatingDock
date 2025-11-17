@@ -74,5 +74,9 @@ public class DockApp {
     public void setActionId(String actionId) {
         this.actionId = actionId;
     }
+    
+    public void setIndex(int index) {
+        this.index = index;
+    }
 }
 

@@ -5,6 +5,31 @@ All notable changes to Floating Dock will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-11-15
+
+### Added
+- **Automatic Update Checker**: New feature to check for app updates directly from GitHub releases
+  - Manual update check button in settings
+  - Automatic version comparison with latest GitHub release
+  - Direct download of APK from GitHub releases
+  - Option to open GitHub releases page in browser
+- **Drag and Drop Reordering**: Dock apps can now be reordered by dragging items in the list
+  - Visual drag handle indicator on each dock app item
+  - Long-press to drag and reorder apps
+  - Changes are automatically saved and reflected in the dock
+
+### Changed
+- **UI Layout Improvements**: 
+  - "Check for updates" button moved to bottom section with other action buttons
+  - Improved button organization and layout consistency
+
+### Technical Improvements
+- **Update Checker Implementation**: 
+  - GitHub API integration for release checking
+  - Semantic version comparison
+  - DownloadManager integration for APK downloads
+  - Proper permission handling for Android 8.0+ installations
+
 ## [1.0.1] - 2025-11-15
 
 ### Added

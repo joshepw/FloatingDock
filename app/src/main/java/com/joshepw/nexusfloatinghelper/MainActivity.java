@@ -2,6 +2,8 @@ package com.joshepw.nexusfloatinghelper;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,6 +31,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -58,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private Button saveButton;
     private Button startServiceButton;
     private Button addAppButton;
+    private Button checkUpdatesButton;
     
     private ActivityResultLauncher<Intent> overlayPermissionLauncher;
     private boolean isInitializing = true;
@@ -142,6 +146,7 @@ public class MainActivity extends AppCompatActivity {
         saveButton = findViewById(R.id.save_button);
         startServiceButton = findViewById(R.id.start_service_button);
         addAppButton = findViewById(R.id.add_app_button);
+        checkUpdatesButton = findViewById(R.id.check_updates_button);
         
         // Configurar controles de incremento/decremento
         setupNumberControls();
@@ -323,6 +328,49 @@ public class MainActivity extends AppCompatActivity {
         
         dockAppsRecycler.setLayoutManager(new LinearLayoutManager(this));
         dockAppsRecycler.setAdapter(dockAppAdapter);
+        
+        // Configurar ItemTouchHelper para drag and drop
+        ItemTouchHelper.Callback callback = new ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
+            
+            @Override
+            public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
+                int fromPosition = viewHolder.getAdapterPosition();
+                int toPosition = target.getAdapterPosition();
+                
+                if (fromPosition < 0 || toPosition < 0) {
+                    return false;
+                }
+                
+                // Reordenar en DockAppManager
+                DockAppManager.reorderDockApps(MainActivity.this, fromPosition, toPosition);
+                
+                // Notificar al adapter del cambio
+                dockAppAdapter.notifyItemMoved(fromPosition, toPosition);
+                
+                // Actualizar la lista previa para la comparación
+                previousDockApps = new ArrayList<>(DockAppManager.getDockApps(MainActivity.this));
+                
+                // Enviar broadcast para actualizar el dock
+                sendConfigUpdateBroadcast("UPDATE_ICONS");
+                
+                return true;
+            }
+            
+            @Override
+            public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
+                // No implementamos swipe, solo drag
+            }
+            
+            @Override
+            public boolean isLongPressDragEnabled() {
+                return true; // Permitir drag con long press
+            }
+        };
+        
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(callback);
+        itemTouchHelper.attachToRecyclerView(dockAppsRecycler);
+        
         refreshDockAppsList();
     }
     
@@ -450,6 +498,10 @@ public class MainActivity extends AppCompatActivity {
         });
         
         saveButton.setOnClickListener(v -> saveSettings());
+        
+        checkUpdatesButton.setOnClickListener(v -> {
+            checkForUpdates();
+        });
         
         startServiceButton.setOnClickListener(v -> {
             startBackgroundService();
@@ -1067,6 +1119,63 @@ public class MainActivity extends AppCompatActivity {
         } else {
             // Solo refrescar la lista si no hubo cambios detectados
             refreshDockAppsList();
+        }
+    }
+    
+    private void checkForUpdates() {
+        try {
+            // Mostrar mensaje de verificación
+            Toast.makeText(this, getString(R.string.update_checking), Toast.LENGTH_SHORT).show();
+            
+            // Obtener versión actual
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            final String currentVersion = packageInfo.versionName;
+            
+            // Verificar actualizaciones
+            UpdateChecker.checkForUpdates(this, new UpdateChecker.UpdateCheckCallback() {
+                @Override
+                public void onUpdateAvailable(UpdateChecker.UpdateInfo updateInfo) {
+                    showUpdateDialog(updateInfo, currentVersion);
+                }
+                
+                @Override
+                public void onNoUpdateAvailable() {
+                    Toast.makeText(MainActivity.this, getString(R.string.update_no_update), Toast.LENGTH_SHORT).show();
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Toast.makeText(MainActivity.this, getString(R.string.update_check_error, error), Toast.LENGTH_LONG).show();
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "Error al verificar actualizaciones", e);
+            Toast.makeText(this, getString(R.string.update_check_error, e.getMessage()), Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void showUpdateDialog(UpdateChecker.UpdateInfo updateInfo, String currentVersion) {
+        try {
+            androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+            builder.setTitle(getString(R.string.update_available_title));
+            builder.setMessage(getString(R.string.update_available_message, updateInfo.getVersionName(), currentVersion));
+            
+            builder.setPositiveButton(getString(R.string.update_download), (dialog, which) -> {
+                // Descargar actualización
+                UpdateChecker.downloadUpdate(MainActivity.this, updateInfo.getDownloadUrl(), updateInfo.getVersionName());
+                Toast.makeText(MainActivity.this, getString(R.string.downloading_update_title, updateInfo.getVersionName()), Toast.LENGTH_LONG).show();
+            });
+            
+            builder.setNeutralButton(getString(R.string.update_open_github), (dialog, which) -> {
+                // Abrir GitHub releases
+                UpdateChecker.openGitHubReleases(MainActivity.this);
+            });
+            
+            builder.setNegativeButton(getString(R.string.update_later), null);
+            builder.show();
+        } catch (Exception e) {
+            Log.e(TAG, "Error al mostrar diálogo de actualización", e);
+            Toast.makeText(this, getString(R.string.error_generic, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 }

@@ -287,6 +287,13 @@
             android:text="@string/start_service_button"
             android:layout_marginTop="8dp" />
 
+        <Button
+            android:id="@+id/check_updates_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/check_updates"
+            android:layout_marginTop="8dp" />
+
     </LinearLayout>
 
 </androidx.core.widget.NestedScrollView>

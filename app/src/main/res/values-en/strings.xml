@@ -148,6 +148,19 @@
     <string name="error_margin_x_range">Horizontal margin must be between -200 and 200</string>
     <string name="error_margin_y_range">Vertical margin must be between -200 and 200</string>
     
+    <!-- Update Checker -->
+    <string name="check_updates">Check for updates</string>
+    <string name="update_available_title">Update Available</string>
+    <string name="update_available_message">A new version (%1$s) is available. Current version: %2$s\n\nWould you like to download it?</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_no_update">You are using the latest version</string>
+    <string name="update_check_error">Error checking for updates: %1$s</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="downloading_update_title">Downloading Floating Dock %1$s</string>
+    <string name="downloading_update_desc">The update will be available in your downloads folder</string>
+    <string name="update_open_github">Open GitHub Releases</string>
+    
     <!-- Select Icon Activity -->
     <string name="select_icon_title">Select an Icon</string>
     <string name="search_icon_hint">Search icon…</string>
@@ -161,6 +174,7 @@
     <string name="auto_start_dialog_cancel">Cancel</string>
     <string name="edit_icon">Edit icon</string>
     <string name="delete">Delete</string>
+    <string name="drag_handle_desc">Drag to reorder</string>
     
     <!-- Draggable -->
     <string name="dock_draggable_label">Draggable dock</string>

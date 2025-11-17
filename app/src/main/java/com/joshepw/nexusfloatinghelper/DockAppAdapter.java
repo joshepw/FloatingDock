@@ -173,6 +173,7 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
         ImageView deleteButton;
         ImageView editButton;
         ImageView autoStartButton;
+        ImageView dragHandle;
         
         ViewHolder(View itemView) {
             super(itemView);
@@ -182,6 +183,18 @@ public class DockAppAdapter extends RecyclerView.Adapter<DockAppAdapter.ViewHold
             deleteButton = itemView.findViewById(R.id.delete_button);
             editButton = itemView.findViewById(R.id.edit_icon_button);
             autoStartButton = itemView.findViewById(R.id.auto_start_button);
+            dragHandle = itemView.findViewById(R.id.drag_handle);
+            
+            // Configurar icono de drag handle
+            if (dragHandle != null) {
+                MaterialIconDrawable dragIcon = new MaterialIconDrawable(context);
+                dragIcon.setIcon("drag_handle");
+                dragIcon.setSize(24);
+                dragIcon.setColor(ContextCompat.getColor(context, android.R.color.darker_gray));
+                dragIcon.setBounds(0, 0, 24, 24);
+                dragHandle.setImageDrawable(dragIcon);
+                dragHandle.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            }
         }
     }
 }

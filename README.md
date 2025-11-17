@@ -43,6 +43,8 @@ Floating Dock is an application that creates a floating dock on your Android dev
 - **Auto Start**: The service starts automatically on system boot
 - **Real-time Updates**: Configuration changes are applied instantly with smooth animations
 - **Multi-language Support**: English and Spanish
+- **Update Checker**: Check for app updates directly from GitHub releases
+- **Drag and Drop Reordering**: Reorder dock apps by dragging items in the list
 
 ## 🚀 Installation
 
